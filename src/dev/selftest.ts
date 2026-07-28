@@ -325,31 +325,128 @@ function runPanelChecks(): void {
   check('hint is encouraging, never says failed', !/נכשל|טעית|לא נכון/.test(hintText), hintText)
   check('input is locked while the wrong answer animates', clickIsIgnored(host, correctId, session))
 
-  // לחיצה על התשובה הנכונה
-  window.setTimeout(() => {
-    const correctBtn = Array.from(host.querySelectorAll<HTMLButtonElement>('.option')).find((b) => b.dataset.id === correctId)!
-    correctBtn.click()
+  panel.close()
+  host.remove()
 
-    check('correct answer notified the world', corrects === 1)
-    check('correct answer marked the option', correctBtn.classList.contains('correct'))
-    const fb = host.querySelector('.feedback')
-    check('feedback card appeared', !!fb)
-    check('feedback shows the english word', (fb?.querySelector('.feedback-en')?.textContent ?? '') === getWord(correctId).english)
-    check('feedback shows the hebrew meaning', (fb?.querySelector('.feedback-he')?.textContent ?? '') === getWord(correctId).hebrew)
-    check('feedback has a speaker to hear it again', !!fb?.querySelector('.speaker-btn'))
-    check('feedback offers a continue button', !!fb?.querySelector('.big-btn'))
-    check('a star was awarded', getProgress().stars > 0, String(getProgress().stars))
+  // מסך נקי לבדיקת התשובה הנכונה, כדי שהבדיקה לא תהיה תלויה בהמתנה
+  // לנעילת הקלט של התשובה השגויה. בדיקה שתלויה בטיימר היא בדיקה
+  // שנוטה להיעלם בשקט, וזה בדיוק מה שמסתיר באגים.
+  const host2 = document.createElement('div')
+  document.body.appendChild(host2)
+  const panel2 = new TaskPanel(host2, {
+    onExit: () => (exits += 1),
+    onCorrect: () => (corrects += 1),
+    onWrong: () => (wrongs += 1),
+    onAreaComplete: () => {},
+  })
+  const session2 = new AreaSession(AREAS[0].id)
+  panel2.open(session2)
 
-    // יציאה מהמשימה
-    host.querySelector<HTMLButtonElement>('.task-top .big-btn')!.click()
-    check('exit button works from any task', exits === 1)
-    panel.close()
-    check('closed panel is hidden again', panel.root.hidden === true)
+  const correctId2 = session2.task.options.find((o) => o.correct)!.id
+  const correctBtn = host2.querySelector<HTMLButtonElement>(`.option[data-id="${correctId2}"]`)!
+  correctBtn.click()
 
-    host.remove()
+  check('correct answer notified the world', corrects === 1)
+  check('correct answer marked the option', correctBtn.classList.contains('correct'))
+  const fb = host2.querySelector('.feedback')
+  check('feedback card appeared', !!fb)
+  check('feedback shows the english word', (fb?.querySelector('.feedback-en')?.textContent ?? '') === getWord(correctId2).english)
+  check('feedback shows the hebrew meaning', (fb?.querySelector('.feedback-he')?.textContent ?? '') === getWord(correctId2).hebrew)
+  check('feedback has a speaker to hear it again', !!fb?.querySelector('.speaker-btn'))
+  check('feedback offers a continue button', !!fb?.querySelector('.big-btn'))
+  check('a star was awarded', getProgress().stars > 0, String(getProgress().stars))
+
+  host2.querySelector<HTMLButtonElement>('.task-top .big-btn')!.click()
+  check('exit button works from any task', exits === 1)
+  panel2.close()
+  check('closed panel is hidden again', panel2.root.hidden === true)
+  host2.remove()
+
+  eraseEverything()
+  playThroughEveryArea()
+}
+
+/**
+ * משחקת אזור שלם דרך ה-DOM בלבד, בדיוק כמו ילדה מול המסך.
+ * זו הבדיקה שתופסת משימה שאי אפשר לעבור אותה, כמו הבאג שבו
+ * הכפתור "שמעתי ואמרתי" נספר כטעות ותקע את המשחק בלולאה.
+ */
+function playThroughEveryArea(): void {
+  for (const area of AREAS) {
     eraseEverything()
-    render()
-  }, 900)
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    let areaDone = false
+    const panel = new TaskPanel(host, {
+      onExit: () => {},
+      onCorrect: () => {},
+      onWrong: () => {},
+      onAreaComplete: () => (areaDone = true),
+    })
+    const session = new AreaSession(area.id)
+    panel.open(session)
+
+    const seenTypes = new Set<string>()
+    let steps = 0
+    let stuckAt = ''
+
+    while (!areaDone && steps < 40) {
+      steps += 1
+      const task = session.task
+      seenTypes.add(task.type)
+      const diamondsBefore = session.lives.value
+      const doneBefore = session.position.done
+
+      // לוחצים על התשובה הנכונה, בדיוק כמו שילדה הייתה לוחצת
+      if (task.type === 'say-it') {
+        host.querySelector<HTMLButtonElement>('.say-it .big-btn')?.click()
+      } else if (task.type === 'match-word-object') {
+        for (const pair of task.pairs ?? []) {
+          host.querySelector<HTMLButtonElement>(`.match-card.word[data-id="${pair.id}"]`)?.click()
+          host.querySelector<HTMLButtonElement>(`.match-card.object[data-id="${pair.id}"]`)?.click()
+        }
+      } else if (task.type === 'two-words') {
+        const correctId = task.options.find((o) => o.correct)!.id
+        const btn = host.querySelector<HTMLButtonElement>(`.option[data-id="${correctId}"]`)
+        const choose = btn?.nextElementSibling
+        if (choose instanceof HTMLButtonElement) choose.click()
+      } else {
+        const correctId = task.options.find((o) => o.correct)!.id
+        host.querySelector<HTMLButtonElement>(`.option[data-id="${correctId}"]`)?.click()
+      }
+
+      // התשובה הנכונה חייבת לפתוח כרטיס משוב. אם לא, המשימה תקועה.
+      const feedback = host.querySelector('.feedback')
+      if (!feedback) {
+        stuckAt = `${task.type} (${task.wordId}) diamonds ${diamondsBefore} -> ${session.lives.value}`
+        break
+      }
+      feedback.querySelector<HTMLButtonElement>('.big-btn')?.click()
+
+      // המשימה האחרונה באזור מציגה כרטיס סיום, ורק לחיצה עליו מסיימת את האזור
+      const completeCard = host.querySelector('.area-complete')
+      if (completeCard) {
+        check(`${area.id}: completion card names the area`, (completeCard.textContent ?? '').includes(area.title))
+        completeCard.querySelector<HTMLButtonElement>('.big-btn')?.click()
+        break
+      }
+
+      if (session.position.done === doneBefore && !task.isPractice) {
+        stuckAt = `${task.type} did not advance`
+        break
+      }
+    }
+
+    check(`${area.id}: every task can be completed through the screen`, stuckAt === '', stuckAt)
+    check(`${area.id}: the area finishes`, areaDone, `steps=${steps}`)
+    check(`${area.id}: no diamond was lost on a correct run`, getProgress().mistakes === 0, String(getProgress().mistakes))
+    for (const spec of area.tasks) seenTypes.add(spec.type)
+    check(`${area.id}: exercised its task types`, seenTypes.size >= new Set(area.tasks.map((t) => t.type)).size)
+
+    panel.close()
+    host.remove()
+  }
+  eraseEverything()
 }
 
 /** מוודא שלחיצה נוספת בזמן האנימציה לא נספרת. */
@@ -358,11 +455,6 @@ function clickIsIgnored(host: HTMLElement, correctId: string, session: AreaSessi
   const btn = Array.from(host.querySelectorAll<HTMLButtonElement>('.option')).find((b) => b.dataset.id !== correctId)
   btn?.click()
   return session.lives.value === before
-}
-
-function render(): void {
-  const node = document.getElementById('out')
-  if (node) node.textContent = [failures === 0 ? `ALL ${lines.length} CHECKS PASSED` : `${failures} FAILURES out of ${lines.length}`, ...lines.slice(1)].join('\n')
 }
 
 try {

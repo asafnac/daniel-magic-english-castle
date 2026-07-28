@@ -67,6 +67,10 @@ export class AreaSession {
   /** תשובה למשימה עם אפשרויות. */
   answer(optionId: string): AnswerResult {
     const task = this.task
+    // רשת ביטחון: משימה בלי אפשרויות, כמו "שמעתי ואמרתי", אינה יכולה
+    // להיכשל. בלי השורה הזאת קריאה שגויה מה-UI הייתה הופכת אותה
+    // למשימה שאי אפשר לעבור אותה לעולם, וזה בדיוק מה שילדה חווה כתקיעה.
+    if (task.options.length === 0) return this.onCorrect()
     const option = task.options.find((o) => o.id === optionId)
     if (option?.correct) return this.onCorrect()
     return this.onWrong()

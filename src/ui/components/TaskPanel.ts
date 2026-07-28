@@ -264,8 +264,13 @@ export class TaskPanel {
     const box = el('div', { class: 'say-it' })
     box.appendChild(el('p', { class: 'say-it-word', text: word.hebrew }))
 
-    const done = bigButton('שמעתי ואמרתי', () => this.answer(task.wordId), { emoji: '✅', variant: 'gold' })
+    // המשימה הזאת תמיד מצליחה. אסור להעביר אותה דרך answer,
+    // כי אין לה רשימת אפשרויות ואז כל לחיצה הייתה נספרת כטעות.
+    const done = bigButton('שמעתי ואמרתי', () => this.confirmSaid(), { emoji: '✅', variant: 'gold' })
     box.appendChild(done)
+    box.appendChild(
+      el('p', { class: 'say-it-note', text: 'המשחק לא מקשיב לך. פשוט תגידי את המילה בקול, ואז תלחצי על הכפתור.' }),
+    )
 
     if (getProgress().settings.speechRecognition && isRecognitionSupported()) {
       const mic = bigButton('לנסות לומר למיקרופון', () => {
@@ -350,6 +355,14 @@ export class TaskPanel {
   }
 
   // ------------------------------------------------------------ תשובות
+
+  /** אישור במשימת "שמעתי ואמרתי". אין כאן טעות אפשרית ואין מיקרופון. */
+  private confirmSaid(): void {
+    const session = this.session
+    if (!session || this.busy) return
+    session.confirmSaid()
+    this.onCorrectResult()
+  }
 
   private answer(optionId: string, btn?: HTMLElement): void {
     const session = this.session
