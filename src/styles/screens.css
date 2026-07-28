@@ -1,0 +1,673 @@
+/* ================= מבנה כללי ================= */
+
+.world-host {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.world-host.hidden {
+  display: none;
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.screen-host {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.screen-host.empty {
+  pointer-events: none;
+}
+
+/* ================= מסך פתיחה ================= */
+
+.title-screen {
+  justify-content: center;
+  position: relative;
+}
+
+.title-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.title-sparkle {
+  position: absolute;
+  animation: twinkle 3s ease-in-out infinite;
+  opacity: 0.8;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    transform: scale(0.85) translateY(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.15) translateY(-8px);
+    opacity: 1;
+  }
+}
+
+.title-card {
+  max-width: 620px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.title-castle {
+  font-size: clamp(60px, 12vw, 96px);
+  animation: bob 2.6s ease-in-out infinite;
+}
+
+.title-he {
+  font-size: clamp(28px, 5.5vw, 44px);
+  font-weight: 900;
+  color: var(--purple-deep);
+  margin: 0;
+}
+
+.title-en {
+  margin: 0;
+  color: var(--pink);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  direction: ltr;
+}
+
+.title-row {
+  margin-top: 6px;
+}
+
+.title-note {
+  color: var(--ink-soft);
+  margin: 4px 0 0;
+}
+
+.title-warning {
+  background: #fff6e0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  color: #7a5a10;
+  font-size: 15px;
+  margin: 4px 0 0;
+}
+
+/* ================= מסך יצירת דמות ================= */
+
+.creator-layout {
+  display: flex;
+  gap: 18px;
+  width: 100%;
+  max-width: 1050px;
+  align-items: flex-start;
+  flex: 1;
+  min-height: 0;
+}
+
+.creator-preview {
+  flex: 0 0 300px;
+  height: min(460px, 60vh);
+  background: linear-gradient(160deg, #fff 0%, #f6ecff 100%);
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+}
+
+.avatar-preview-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.creator-options {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.creator-row {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 20px;
+  padding: 12px 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+.creator-row-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: var(--purple-deep);
+}
+
+.creator-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 3px solid transparent;
+  background: var(--pink-soft);
+  border-radius: 16px;
+  padding: 8px 14px;
+  min-height: 52px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.choice:hover {
+  transform: translateY(-2px);
+}
+
+.choice.selected {
+  border-color: var(--purple);
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+.choice.selected::after {
+  content: '✓';
+  color: var(--good);
+  font-weight: 900;
+}
+
+.choice-emoji {
+  font-size: 22px;
+}
+
+.choice-color {
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+}
+
+.choice-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  display: block;
+}
+
+.choice-label {
+  font-size: 14px;
+}
+
+.creator-actions {
+  margin-top: 14px;
+  padding-bottom: 10px;
+}
+
+/* ================= מסך התקדמות ================= */
+
+.progress-screen,
+.settings-screen {
+  gap: 14px;
+}
+
+.stat-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 900px;
+}
+
+.stat-card {
+  flex: 1 1 150px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 22px;
+  box-shadow: var(--shadow-soft);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stat-emoji {
+  font-size: 30px;
+}
+
+.stat-value {
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--purple-deep);
+}
+
+.stat-label {
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.progress-card {
+  width: 100%;
+  max-width: 900px;
+}
+
+.progress-card-title {
+  margin: 0 0 10px;
+  font-size: 21px;
+  color: var(--purple-deep);
+}
+
+.progress-subtitle {
+  margin: 12px 0 6px;
+  font-size: 16px;
+  color: var(--ink-soft);
+}
+
+.progress-empty {
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+}
+
+.area-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.area-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--pink-soft);
+  border-radius: 18px;
+  padding: 10px 14px;
+}
+
+.area-item.locked {
+  background: #eeeaf3;
+  opacity: 0.75;
+}
+
+.area-item-emoji {
+  font-size: 32px;
+}
+
+.area-item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.area-item-title {
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.area-item-bar {
+  display: block;
+  height: 10px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+}
+
+.area-item-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--turquoise), var(--sky));
+  transition: width 0.4s ease;
+}
+
+.area-item-note {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.word-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.word-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: #fff;
+  border-radius: 16px;
+  padding: 8px 12px;
+  min-height: 52px;
+  box-shadow: var(--shadow-soft);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.word-chip:hover {
+  transform: translateY(-2px);
+}
+
+.word-chip-emoji {
+  font-size: 24px;
+}
+
+.word-chip-speaker {
+  font-size: 18px;
+  opacity: 0.65;
+}
+
+.practice-card {
+  background: #fff8e8;
+}
+
+.screen-actions {
+  margin: 8px 0 18px;
+}
+
+/* ================= מסך הגדרות ================= */
+
+.settings-card {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-section {
+  margin: 12px 0 2px;
+  font-size: 19px;
+  color: var(--purple-deep);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pink-soft);
+  border-radius: 18px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+}
+
+.settings-emoji {
+  font-size: 26px;
+}
+
+.settings-label-box {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-label {
+  font-weight: 700;
+  flex: 1;
+  min-width: 140px;
+}
+
+.settings-hint {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.settings-note {
+  color: var(--ink-soft);
+  font-size: 15px;
+  background: #f4f0fb;
+  border-radius: 14px;
+  padding: 10px 14px;
+  margin: 0;
+}
+
+.settings-slider {
+  flex: 1 1 160px;
+  accent-color: var(--purple);
+  height: 34px;
+}
+
+.settings-value {
+  font-weight: 700;
+  color: var(--purple-deep);
+  min-width: 76px;
+  text-align: center;
+}
+
+.toggle {
+  border: 3px solid var(--purple);
+  background: #fff;
+  color: var(--purple-deep);
+  border-radius: 99px;
+  min-width: 92px;
+  min-height: 48px;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.toggle.on {
+  background: var(--purple);
+  color: #fff;
+}
+
+/* ================= HUD ותפריט עצירה ================= */
+
+.hud {
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  pointer-events: none;
+}
+
+.hud > * {
+  pointer-events: auto;
+}
+
+.hud-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--purple-deep);
+  font-size: 26px;
+  box-shadow: var(--shadow-soft);
+}
+
+.hud-area {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 99px;
+  padding: 8px 18px;
+  font-weight: 800;
+  color: var(--purple-deep);
+  box-shadow: var(--shadow-soft);
+}
+
+.hud-stars {
+  margin-inline-start: auto;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 99px;
+  padding: 8px 18px;
+  font-weight: 900;
+  font-size: 20px;
+  color: #8a6a05;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-stars-value.pop {
+  animation: starPop 0.5s ease;
+  display: inline-block;
+}
+
+@keyframes starPop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.5);
+    color: var(--gold);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.pause-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(60, 35, 90, 0.45);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  z-index: 60;
+  padding: 18px;
+}
+
+.pause-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  width: min(400px, 92vw);
+  text-align: center;
+}
+
+.pause-emoji {
+  font-size: 46px;
+}
+
+/* ================= כפתורי תנועה ================= */
+
+.touch-pad {
+  position: absolute;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  inset-inline-start: 16px;
+  display: grid;
+  grid-template-areas:
+    '. up .'
+    'left . right'
+    '. down .';
+  gap: 8px;
+  z-index: 40;
+  transition: opacity 0.3s ease;
+}
+
+.touch-pad.dim {
+  opacity: 0.28;
+}
+
+.touch-pad.hidden {
+  display: none;
+}
+
+.pad-btn {
+  width: 62px;
+  height: 62px;
+  border-radius: 20px;
+  border: none;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--purple-deep);
+  font-size: 24px;
+  box-shadow: var(--shadow-soft);
+  touch-action: none;
+  user-select: none;
+}
+
+.pad-btn.active {
+  background: var(--purple);
+  color: #fff;
+  transform: scale(0.94);
+}
+
+.pad-btn.up {
+  grid-area: up;
+}
+.pad-btn.down {
+  grid-area: down;
+}
+.pad-btn.left {
+  grid-area: left;
+}
+.pad-btn.right {
+  grid-area: right;
+}
+
+/* ================= מסך שגיאה ================= */
+
+.fatal-screen {
+  justify-content: center;
+}
+
+.fatal-card {
+  max-width: 520px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.fatal-emoji {
+  font-size: 64px;
+}
+
+/* ================= מסכים קטנים ================= */
+
+@media (max-width: 820px) {
+  .creator-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .creator-preview {
+    flex: none;
+    width: min(300px, 80vw);
+    height: 300px;
+    position: relative;
+  }
+}
+
+@media (max-height: 640px) {
+  .title-castle {
+    font-size: 54px;
+  }
+
+  .creator-preview {
+    height: 220px;
+  }
+
+  .big-btn {
+    min-height: 56px;
+    font-size: 19px;
+  }
+}

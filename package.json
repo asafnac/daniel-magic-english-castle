@@ -1,0 +1,25 @@
+{
+  "name": "daniel-magic-english-castle",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Daniel's Magic English Castle - a listening-first English adventure game for young Hebrew-speaking beginners",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/three": "^0.180.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  }
+}

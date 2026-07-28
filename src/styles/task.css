@@ -1,0 +1,641 @@
+/* ================= פאנל המשימה ================= */
+
+.task-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(60, 35, 90, 0.42);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  z-index: 70;
+  padding: 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.task-panel {
+  --accent: #f487c0;
+  position: relative;
+  width: min(880px, 96vw);
+  max-height: 96vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--cream);
+  border-radius: 28px;
+  box-shadow: 0 20px 50px rgba(60, 30, 90, 0.35);
+  border: 6px solid var(--accent);
+  padding: 14px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---------- שורה עליונה ---------- */
+
+.task-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.task-progress {
+  flex: 1;
+  min-width: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+}
+
+.task-progress-bar {
+  display: block;
+  height: 12px;
+  border-radius: 99px;
+  background: #ece4f5;
+  overflow: hidden;
+}
+
+.task-progress-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--turquoise), var(--sky));
+  transition: width 0.45s ease;
+}
+
+.task-progress-text {
+  font-size: 14px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.diamond-bar {
+  display: flex;
+  gap: 4px;
+  font-size: 26px;
+}
+
+.diamond {
+  transition: transform 0.25s ease, filter 0.25s ease, opacity 0.25s ease;
+}
+
+.diamond.lost {
+  filter: grayscale(1);
+  opacity: 0.28;
+  transform: scale(0.85);
+}
+
+.diamond.losing {
+  animation: gemPop 0.5s ease;
+}
+
+@keyframes gemPop {
+  0% {
+    transform: scale(1.35) rotate(-12deg);
+    filter: none;
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.85);
+    opacity: 0.28;
+  }
+}
+
+/* ---------- הוראה ---------- */
+
+.task-prompt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.speaker-btn.he {
+  background: linear-gradient(160deg, #cbb6ef 0%, var(--purple) 100%);
+  color: #fff;
+  flex: none;
+}
+
+.task-prompt-text {
+  margin: 0;
+  font-size: clamp(17px, 2.4vw, 22px);
+  font-weight: 800;
+  color: var(--purple-deep);
+}
+
+/* ---------- גוף המשימה ---------- */
+
+.task-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.task-stimulus {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.stimulus-single {
+  font-size: clamp(64px, 14vw, 108px);
+  line-height: 1.1;
+  animation: bob 3s ease-in-out infinite;
+}
+
+.stimulus-count {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: 520px;
+  background: #fff;
+  border-radius: 22px;
+  padding: 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.stimulus-item {
+  font-size: clamp(32px, 6vw, 46px);
+}
+
+.task-replay {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.task-replay-label {
+  color: var(--ink-soft);
+  font-size: 16px;
+}
+
+/* ---------- אפשרויות ---------- */
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 5px solid #eadff7;
+  background: #fff;
+  border-radius: 24px;
+  padding: 12px;
+  min-width: 128px;
+  min-height: 128px;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.option:hover:not(:disabled) {
+  transform: translateY(-4px) scale(1.03);
+  border-color: var(--accent);
+}
+
+.option:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.option.correct {
+  border-color: var(--good);
+  background: #e7f8ed;
+  animation: rightAnswer 0.55s ease;
+}
+
+.option.correct::after {
+  content: '✓';
+  position: absolute;
+  top: -14px;
+  inset-inline-end: -10px;
+  background: var(--good);
+  color: #fff;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.option.wrong {
+  border-color: var(--soft);
+  background: #fff3e6;
+  animation: shake 0.4s ease;
+}
+
+.option-mark {
+  position: absolute;
+  top: -14px;
+  inset-inline-end: -10px;
+  background: var(--soft);
+  color: #fff;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.option.hidden-option {
+  opacity: 0.18;
+  filter: grayscale(1);
+  pointer-events: none;
+  transform: scale(0.9);
+}
+
+.option-emoji {
+  font-size: clamp(46px, 9vw, 66px);
+  line-height: 1;
+}
+
+.option-letter {
+  font-size: clamp(52px, 10vw, 78px);
+  font-weight: 900;
+  color: var(--purple-deep);
+  direction: ltr;
+  line-height: 1;
+}
+
+.option-label {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.option-english {
+  font-size: 15px;
+  color: var(--ink-soft);
+  direction: ltr;
+}
+
+.option-count {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  max-width: 168px;
+}
+
+.option-count span {
+  font-size: 26px;
+}
+
+.option-badge {
+  position: absolute;
+  top: 8px;
+  inset-inline-start: 10px;
+  background: var(--accent);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+}
+
+.option-speaker {
+  font-size: 46px;
+}
+
+.option-choose {
+  align-self: center;
+}
+
+.option-choose.hidden-option {
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.two-words-grid {
+  align-items: center;
+}
+
+/* צורות לאפשרויות הצבע, כדי שלעולם לא נסתמך על צבע בלבד */
+.swatch {
+  width: clamp(58px, 11vw, 80px);
+  height: clamp(58px, 11vw, 80px);
+  display: block;
+  border: 3px solid rgba(0, 0, 0, 0.18);
+}
+
+.shape-circle {
+  border-radius: 50%;
+}
+.shape-square {
+  border-radius: 12px;
+}
+.shape-star {
+  border-radius: 6px;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  border: none;
+}
+.shape-heart {
+  clip-path: path('M40 72 C 6 48, 6 18, 24 12 C 34 8, 40 18, 40 24 C 40 18, 46 8, 56 12 C 74 18, 74 48, 40 72 Z');
+  border: none;
+}
+.shape-flower {
+  border-radius: 50% 12% 50% 12%;
+}
+.shape-diamond {
+  border-radius: 10px;
+  transform: rotate(45deg) scale(0.78);
+}
+
+/* ---------- משימת התאמה ---------- */
+
+.match-box {
+  display: flex;
+  gap: 18px;
+  width: 100%;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.match-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.match-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 5px solid #eadff7;
+  background: #fff;
+  border-radius: 22px;
+  padding: 10px 16px;
+  min-width: 110px;
+  min-height: 96px;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.match-card:hover {
+  transform: translateY(-3px);
+}
+
+.match-card.selected {
+  border-color: var(--purple);
+  background: #f6efff;
+}
+
+.match-card.selected::after {
+  content: '👉';
+  font-size: 20px;
+}
+
+.match-card.matched {
+  border-color: var(--good);
+  background: #e7f8ed;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.match-card.matched::after {
+  content: '✓';
+  color: var(--good);
+  font-weight: 900;
+  font-size: 20px;
+}
+
+/* ---------- משימת דיבור ---------- */
+
+.say-it {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.say-it-word {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--purple-deep);
+  margin: 0;
+}
+
+.say-it-note {
+  color: var(--ink-soft);
+  font-size: 15px;
+  margin: 0;
+  text-align: center;
+  max-width: 420px;
+}
+
+.big-btn.listening {
+  animation: pulse 0.9s ease-in-out infinite;
+}
+
+/* ---------- רמז ---------- */
+
+.task-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff6e0;
+  border-radius: 18px;
+  padding: 12px 16px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #7a5a10;
+  animation: hintIn 0.35s ease;
+}
+
+.hint-icon {
+  font-size: 24px;
+}
+
+@keyframes hintIn {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* ---------- משוב ---------- */
+
+.feedback {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 250, 243, 0.97);
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px;
+  animation: feedbackIn 0.35s cubic-bezier(0.2, 1.4, 0.5, 1);
+  z-index: 5;
+}
+
+.feedback.gentle {
+  background: rgba(246, 240, 255, 0.98);
+}
+
+.feedback-emoji {
+  font-size: clamp(64px, 14vw, 104px);
+  animation: bob 1.6s ease-in-out infinite;
+}
+
+.feedback-cheer {
+  font-size: clamp(26px, 5vw, 38px);
+  font-weight: 900;
+  color: var(--good);
+}
+
+.feedback.gentle .feedback-cheer {
+  color: var(--purple-deep);
+}
+
+.feedback-word {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.feedback-en {
+  font-size: clamp(28px, 6vw, 44px);
+  font-weight: 900;
+  color: var(--purple-deep);
+  direction: ltr;
+}
+
+.feedback-he {
+  font-size: 21px;
+  color: var(--ink-soft);
+  text-align: center;
+  max-width: 460px;
+  margin: 0;
+}
+
+@keyframes feedbackIn {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* ---------- סיום אזור ---------- */
+
+.area-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 10px;
+}
+
+.area-complete-emoji {
+  font-size: 84px;
+  animation: bob 2s ease-in-out infinite;
+}
+
+.area-complete-title {
+  margin: 0;
+  font-size: clamp(24px, 5vw, 34px);
+  color: var(--purple-deep);
+}
+
+.area-complete-text {
+  margin: 0;
+  color: var(--ink-soft);
+  max-width: 460px;
+}
+
+.area-complete-stars {
+  font-size: 32px;
+  letter-spacing: 4px;
+}
+
+/* ---------- אנימציות ---------- */
+
+@keyframes rightAnswer {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-7px);
+  }
+  75% {
+    transform: translateX(7px);
+  }
+}
+
+/* ---------- מסכים קטנים ---------- */
+
+@media (max-width: 620px) {
+  .option {
+    min-width: 104px;
+    min-height: 104px;
+    padding: 8px;
+  }
+
+  .task-panel {
+    padding: 10px 12px 16px;
+    border-width: 4px;
+  }
+
+  .match-box {
+    gap: 10px;
+  }
+}
+
+@media (max-height: 640px) {
+  .stimulus-single {
+    font-size: 56px;
+  }
+
+  .option {
+    min-height: 96px;
+    min-width: 96px;
+  }
+
+  .option-emoji {
+    font-size: 42px;
+  }
+}
