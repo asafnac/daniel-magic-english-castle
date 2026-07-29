@@ -38,7 +38,10 @@ export function buildProgressScreen(onBack: () => void): HTMLElement {
 
   // ---------------------------------------------------------- אזורים
   const areasCard = el('div', { class: 'card progress-card' })
-  areasCard.appendChild(el('h2', { class: 'progress-card-title', text: 'הטירה שלי' }))
+  areasCard.appendChild(el('h2', { class: 'progress-card-title', text: `הטירה שלי, ${AREAS.length} עולמות` }))
+  areasCard.appendChild(
+    el('p', { class: 'progress-empty', text: 'כל עולם נפתח כשמסיימים את זה שלפניו. השער נפתח לבד ואפשר להמשיך ללכת קדימה.' }),
+  )
   const areaList = el('div', { class: 'area-list' })
   for (const area of AREAS) {
     const ap = save.areas[area.id]
@@ -51,10 +54,18 @@ export function buildProgressScreen(onBack: () => void): HTMLElement {
     info.appendChild(el('span', { class: 'area-item-title', text: area.title }))
     const bar = el('span', { class: 'area-item-bar' }, [el('i', { style: { width: `${(done / total) * 100}%` } })])
     info.appendChild(bar)
+    // באזור נעול מציינים במפורש מה פותח אותו, כדי שיהיה ברור שיש המשך
+    const previous = AREAS.find((a) => a.order === area.order - 1)
     info.appendChild(
       el('span', {
         class: 'area-item-note',
-        text: unlocked ? (ap?.done ? 'סיימת! אפשר לשחק שוב 🎉' : `${done} מתוך ${total} משימות`) : 'ייפתח בקרוב',
+        text: unlocked
+          ? ap?.done
+            ? 'סיימת! כל הכבוד 🎉'
+            : `${done} מתוך ${total} משימות`
+          : previous
+            ? `ייפתח אחרי ${previous.title}`
+            : 'ייפתח בקרוב',
       }),
     )
     item.appendChild(info)

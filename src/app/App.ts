@@ -11,6 +11,7 @@ import { sfxGate, sfxStar, startMusic, stopMusic } from '../learning/audio'
 import { areaProgress, flushSave, getProgress } from '../learning/progress'
 import { AreaSession } from '../learning/session'
 import { Hud } from '../ui/components/Hud'
+import { sayInstruction } from '../ui/components/SpeakerButton'
 import { TaskPanel } from '../ui/components/TaskPanel'
 import { toast } from '../ui/components/Toast'
 import { clear, el } from '../ui/dom'
@@ -143,6 +144,15 @@ export class App {
       }
       const area = getArea(areaId)
       this.hud?.setArea(area.title, area.emoji)
+    }
+
+    // שער נעול חייב לספר מה מחכה מאחוריו. אחרת נראה שהטירה נגמרה כאן.
+    world.onApproachLockedGate = (fromAreaId, toAreaId) => {
+      const behind = getArea(toAreaId)
+      const current = getArea(fromAreaId)
+      const message = `מאחורי השער מחכה ${behind.emoji} ${behind.title}. צריך לסיים את ${current.title} כדי לפתוח אותו`
+      toast(`🔒 ${message}`, 5200)
+      sayInstruction(message)
     }
 
     this.hud = new Hud(() => this.openPause())

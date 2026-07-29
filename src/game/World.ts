@@ -10,7 +10,7 @@ import { Castle } from './Castle'
 import { Controls } from './Controls'
 import { Effects } from './Effects'
 import { Player } from './Player'
-import { SPAWN, areaEntry, areaAt } from './layout'
+import { BRIDGE_HALF, SPAWN, areaEntry, areaAt } from './layout'
 import type { AvatarConfig } from '../app/avatarConfig'
 
 const CAMERA_OFFSET = new THREE.Vector3(0, 8, 11.5)
@@ -39,8 +39,14 @@ export class World {
   onReachGuide: ((areaId: string) => void) | null = null
   /** נקרא כשהשחקנית נכנסת לאזור חדש. null כשהיא בחצר או על גשר. */
   onEnterArea: ((areaId: string | null) => void) | null = null
+  /**
+   * נקרא כשהשחקנית מתקרבת לשער נעול. בלי זה השער פשוט חוסם בשקט,
+   * והטירה נראית כאילו היא נגמרת שם.
+   */
+  onApproachLockedGate: ((fromAreaId: string, toAreaId: string) => void) | null = null
 
   private lastAreaId: string | null | undefined = undefined
+  private nearGateFrom: string | null = null
 
   constructor(host: HTMLElement, avatar: AvatarConfig) {
     this.canvasHost = host
@@ -111,6 +117,27 @@ export class World {
     this.updateCamera(dt)
     this.checkGuides()
     this.checkArea()
+    this.checkLockedGates()
+  }
+
+  private checkLockedGates(): void {
+    const p = this.player.position
+    let near: string | null = null
+    let target = ''
+    for (const gate of this.castle.gates) {
+      if (gate.open) continue
+      if (Math.abs(p.z - gate.z) < 8 && Math.abs(p.x) < BRIDGE_HALF + 3) {
+        near = gate.fromAreaId
+        target = gate.toAreaId
+        break
+      }
+    }
+    if (near && near !== this.nearGateFrom) {
+      this.nearGateFrom = near
+      this.onApproachLockedGate?.(near, target)
+    } else if (!near) {
+      this.nearGateFrom = null
+    }
   }
 
   private updateCamera(dt: number): void {

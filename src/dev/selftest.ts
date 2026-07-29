@@ -364,6 +364,86 @@ function runPanelChecks(): void {
 
   eraseEverything()
   playThroughEveryArea()
+  playTheWholeCastleInOrder()
+}
+
+/**
+ * משחקת את כל הטירה ברצף, מהצבעים ועד האותיות, בלי לאפס בין אזורים.
+ * זו הבדיקה שמוכיחה שכל אזור באמת פותח את הבא אחריו ושכל שער נפתח,
+ * ולא רק המעבר הראשון מהצבעים לחיות.
+ */
+function playTheWholeCastleInOrder(): void {
+  eraseEverything()
+  const host = document.createElement('div')
+  document.body.appendChild(host)
+
+  let unlockedByFinishing: (string | undefined)[] = []
+  const panel = new TaskPanel(host, {
+    onExit: () => {},
+    onCorrect: () => {},
+    onWrong: () => {},
+    onAreaComplete: (unlocked) => unlockedByFinishing.push(unlocked),
+  })
+
+  // רק האזור הראשון פתוח בהתחלה
+  check('only the first area starts unlocked', AREAS.filter((a) => getProgress().areas[a.id].unlocked).length === 1)
+
+  for (const area of AREAS) {
+    check(`${area.id}: is unlocked by the time we reach it`, getProgress().areas[area.id].unlocked === true)
+
+    const session = new AreaSession(area.id)
+    panel.open(session)
+    let finished = false
+    let steps = 0
+    while (!finished && steps < 40) {
+      steps += 1
+      const task = session.task
+      if (task.type === 'say-it') host.querySelector<HTMLButtonElement>('.say-it .big-btn')?.click()
+      else if (task.type === 'match-word-object') {
+        for (const pair of task.pairs ?? []) {
+          host.querySelector<HTMLButtonElement>(`.match-card.word[data-id="${pair.id}"]`)?.click()
+          host.querySelector<HTMLButtonElement>(`.match-card.object[data-id="${pair.id}"]`)?.click()
+        }
+      } else if (task.type === 'two-words') {
+        const id = task.options.find((o) => o.correct)!.id
+        const sib = host.querySelector<HTMLButtonElement>(`.option[data-id="${id}"]`)?.nextElementSibling
+        if (sib instanceof HTMLButtonElement) sib.click()
+      } else {
+        const id = task.options.find((o) => o.correct)!.id
+        host.querySelector<HTMLButtonElement>(`.option[data-id="${id}"]`)?.click()
+      }
+      host.querySelector<HTMLButtonElement>('.feedback .big-btn')?.click()
+      const card = host.querySelector('.area-complete')
+      if (card) {
+        card.querySelector<HTMLButtonElement>('.big-btn')?.click()
+        finished = true
+      }
+    }
+    check(`${area.id}: finished while playing the castle in order`, finished, `steps=${steps}`)
+    check(`${area.id}: marked done`, getProgress().areas[area.id].done === true)
+  }
+
+  panel.close()
+  host.remove()
+
+  // כל חמשת האזורים פתוחים וסומנו כהושלמו
+  check('all five areas end up unlocked', AREAS.every((a) => getProgress().areas[a.id].unlocked), String(AREAS.filter((a) => getProgress().areas[a.id].unlocked).length))
+  check('all five areas end up done', AREAS.every((a) => getProgress().areas[a.id].done))
+  check(
+    'each finished area unlocked exactly the next one',
+    unlockedByFinishing.slice(0, 4).join(',') === AREAS.slice(1).map((a) => a.id).join(','),
+    unlockedByFinishing.join(','),
+  )
+  check('finishing the last area unlocks nothing further', unlockedByFinishing[4] === undefined)
+  check('every word in the castle was learned', getProgress().wordsLearned.length >= 45, String(getProgress().wordsLearned.length))
+
+  // והשערים בעולם התלת-ממדי נפתחים בהתאם להתקדמות השמורה
+  const castle = new Castle()
+  for (const area of AREAS.slice(0, 4)) {
+    check(`${area.id}: its gate is open in a freshly built castle`, castle.isGateOpen(area.id))
+  }
+  castle.dispose()
+  eraseEverything()
 }
 
 /**
