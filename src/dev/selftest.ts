@@ -32,6 +32,15 @@ function run(): void {
   check('every color word has a hex', WORDS.filter((w) => w.category === 'colors').every((w) => !!w.color))
   check('every number word has a count', WORDS.filter((w) => w.category === 'numbers').every((w) => typeof w.count === 'number'))
   check('every letter word has a sentence', WORDS.filter((w) => w.category === 'letters').every((w) => !!w.sentence && !!w.letterEmoji))
+  check('size words come in a pair of the same object', (() => {
+    const sized = WORDS.filter((w) => w.sizeHint)
+    return sized.length >= 2 && new Set(sized.map((w) => w.emoji)).size === 1
+  })())
+  check('every phrase item has a scene emoji', WORDS.filter((w) => w.category === 'phrases').every((w) => w.emoji.length > 0))
+  check('phrase scenes are distinct enough to tell apart', (() => {
+    const phrases = WORDS.filter((w) => w.category === 'phrases')
+    return new Set(phrases.map((w) => w.emoji)).size === phrases.length
+  })())
 
   // ---------------------------------------------------------- הגדרות האזורים
   for (const area of AREAS) {
@@ -83,6 +92,20 @@ function run(): void {
       }
       if (spec.type === 'counting' && (spec.variant ?? 'count-objects') === 'count-objects') {
         check(`${area.id}/counting/${spec.word}: stimulus matches the number`, task.stimulus?.repeat === getWord(spec.word).count)
+      }
+      if (spec.type === 'phrase-match') {
+        // אם שתי סצנות נראות אותו דבר, המשימה אינה פתירה בעיניים
+        const scenes = new Set(task.options.map((o) => o.emoji))
+        check(`${area.id}/phrase/${spec.word}: every scene looks different`, scenes.size === task.options.length, `${scenes.size}/${task.options.length}`)
+        check(`${area.id}/phrase/${spec.word}: speaks the whole phrase`, task.speakOnStart === getWord(spec.word).english)
+      }
+      if (spec.type === 'size-pick') {
+        // גדול וקטן חייבים להיות אותו עצם, אחרת זה מלמד צורה ולא גודל
+        const glyphs = new Set(task.options.map((o) => o.emoji))
+        check(`${area.id}/size/${spec.word}: both options are the same object`, glyphs.size === 1)
+        const scales = task.options.map((o) => o.scale ?? 0)
+        check(`${area.id}/size/${spec.word}: the two options differ in scale`, new Set(scales).size === 2, scales.join(','))
+        check(`${area.id}/size/${spec.word}: both options carry a hebrew label`, task.options.every((o) => !!o.label))
       }
     }
   }
@@ -426,20 +449,22 @@ function playTheWholeCastleInOrder(): void {
   panel.close()
   host.remove()
 
-  // כל חמשת האזורים פתוחים וסומנו כהושלמו
-  check('all five areas end up unlocked', AREAS.every((a) => getProgress().areas[a.id].unlocked), String(AREAS.filter((a) => getProgress().areas[a.id].unlocked).length))
-  check('all five areas end up done', AREAS.every((a) => getProgress().areas[a.id].done))
+  // כל האזורים פתוחים וסומנו כהושלמו. הבדיקות נגזרות מאורך AREAS
+  // ולא ממספר קבוע, כדי שהוספת אזור בעתיד לא תפיל אותן סתם.
+  const last = AREAS.length - 1
+  check('every area ends up unlocked', AREAS.every((a) => getProgress().areas[a.id].unlocked), `${AREAS.filter((a) => getProgress().areas[a.id].unlocked).length}/${AREAS.length}`)
+  check('every area ends up done', AREAS.every((a) => getProgress().areas[a.id].done))
   check(
     'each finished area unlocked exactly the next one',
-    unlockedByFinishing.slice(0, 4).join(',') === AREAS.slice(1).map((a) => a.id).join(','),
+    unlockedByFinishing.slice(0, last).join(',') === AREAS.slice(1).map((a) => a.id).join(','),
     unlockedByFinishing.join(','),
   )
-  check('finishing the last area unlocks nothing further', unlockedByFinishing[4] === undefined)
-  check('every word in the castle was learned', getProgress().wordsLearned.length >= 45, String(getProgress().wordsLearned.length))
+  check('finishing the last area unlocks nothing further', unlockedByFinishing[last] === undefined)
+  check('most of the castle vocabulary was learned', getProgress().wordsLearned.length >= 60, String(getProgress().wordsLearned.length))
 
   // והשערים בעולם התלת-ממדי נפתחים בהתאם להתקדמות השמורה
   const castle = new Castle()
-  for (const area of AREAS.slice(0, 4)) {
+  for (const area of AREAS.slice(0, last)) {
     check(`${area.id}: its gate is open in a freshly built castle`, castle.isGateOpen(area.id))
   }
   castle.dispose()

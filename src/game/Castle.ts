@@ -50,6 +50,10 @@ const THEME_PROPS: Record<AreaLayout['theme'], string[]> = {
   kitchen: ['🍎', '🍌', '🍊', '🥛', '🍞', '🍰', '🥚', '💧'],
   numbers: ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '💎', '⭐', '🔟'],
   library: ['📕', '📗', '📘', '🕯️', '🦉', '📜'],
+  friends: ['👋', '🙋', '✅', '❌', '🏷️', '🎈'],
+  home: ['🏠', '👩', '👨', '👶', '🛋️', '🪟'],
+  opposites: ['🎭', '😊', '😢', '🔵', '🔹', '🔁'],
+  classroom: ['🎒', '✏️', '🖊️', '📖', '🪑', '🍎'],
 }
 
 export class Castle {
@@ -163,6 +167,44 @@ export class Castle {
     if (layout.theme === 'numbers') {
       this.root.add(placeAt(tower(this.res, 0xdfeeff, layout.accent, 13, 3), -10, 0, zMid))
       this.root.add(placeAt(tower(this.res, 0xdfeeff, layout.accent, 10, 2.4), 10, 0, zMid + 4))
+    }
+
+    // אגף הבית: בתים קטנים לאורך הדרך, כדי שיהיה ברור שזו שכונה
+    if (layout.theme === 'home') {
+      for (let i = 0; i < 3; i++) {
+        const z = layout.zStart - 6 - i * 6
+        if (z < layout.zEnd + 4) break
+        for (const side of [-1, 1]) {
+          const walls = new THREE.Mesh(this.res.track(new THREE.BoxGeometry(4, 3, 4)), this.res.mat(0xfff1e0))
+          walls.position.set(side * (layout.halfWidth - 5), 1.5, z)
+          const roof = new THREE.Mesh(this.res.track(new THREE.ConeGeometry(3.4, 2.2, 4)), this.res.mat(layout.accent))
+          roof.position.set(side * (layout.halfWidth - 5), 4.1, z)
+          roof.rotation.y = Math.PI / 4
+          this.root.add(walls, roof)
+        }
+      }
+    }
+
+    // כיתת הקסם: שולחנות בשורות, כמו כיתה אמיתית
+    if (layout.theme === 'classroom') {
+      const deskGeo = this.res.track(new THREE.BoxGeometry(2.4, 0.25, 1.2))
+      const legGeo = this.res.track(new THREE.BoxGeometry(0.18, 0.8, 0.18))
+      const woodMat = this.res.mat(0xc89b6a)
+      for (let row = 0; row < 3; row++) {
+        const z = layout.zStart - 7 - row * 4.5
+        if (z < layout.zEnd + 5) break
+        for (const side of [-1, 1]) {
+          const x = side * 7
+          const top = new THREE.Mesh(deskGeo, woodMat)
+          top.position.set(x, 0.9, z)
+          this.root.add(top)
+          for (const [lx, lz] of [[-1, -0.4], [1, -0.4], [-1, 0.4], [1, 0.4]]) {
+            const leg = new THREE.Mesh(legGeo, woodMat)
+            leg.position.set(x + lx, 0.4, z + lz)
+            this.root.add(leg)
+          }
+        }
+      }
     }
 
     // מדפי ספרים בספרייה

@@ -329,6 +329,23 @@
   align-items: center;
 }
 
+/* סצנות של משפטים. רחבות יותר, כי לפעמים יש בהן שני אימוג'ים. */
+.phrase-grid .option {
+  min-width: 152px;
+}
+
+/* משימת גדול וקטן. הגובה קבוע כדי שהעצם הגדול לא יימתח את הקלף
+   וייתן רמז לפי גודל הקלף במקום לפי גודל העצם. */
+.size-grid .option {
+  min-width: 168px;
+  min-height: 200px;
+  justify-content: center;
+}
+
+.size-grid .option-emoji {
+  line-height: 1;
+}
+
 /* צורות לאפשרויות הצבע, כדי שלעולם לא נסתמך על צבע בלבד */
 .swatch {
   width: clamp(58px, 11vw, 80px);

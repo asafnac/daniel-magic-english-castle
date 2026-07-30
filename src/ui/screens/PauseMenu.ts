@@ -4,6 +4,7 @@ import { bigButton, el } from '../dom'
 
 export interface PauseDeps {
   onResume: () => void
+  onMap: () => void
   onCustomize: () => void
   onProgress: () => void
   onSettings: () => void
@@ -18,6 +19,7 @@ export function buildPauseMenu(deps: PauseDeps): HTMLElement {
 
   const resume = bigButton('לחזור לשחק', deps.onResume, { emoji: '▶️', variant: 'gold' })
   card.appendChild(resume)
+  card.appendChild(bigButton('מפת הטירה', deps.onMap, { emoji: '🗺️', variant: 'sky' }))
   card.appendChild(bigButton('להחליף מראה', deps.onCustomize, { emoji: '👗', variant: 'ghost' }))
   card.appendChild(bigButton('ההתקדמות שלי', deps.onProgress, { emoji: '📊', variant: 'ghost' }))
   card.appendChild(bigButton('הגדרות', deps.onSettings, { emoji: '⚙️', variant: 'ghost' }))

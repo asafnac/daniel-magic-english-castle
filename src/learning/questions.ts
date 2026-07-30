@@ -20,6 +20,10 @@ export type TaskType =
   | 'counting'
   | 'color-pick'
   | 'say-it'
+  /** שומעים משפט שלם ובוחרים את הסצנה שמתאימה לו. */
+  | 'phrase-match'
+  /** שומעים "גדול" או "קטן" ובוחרים בין אותו עצם בשני גדלים. */
+  | 'size-pick'
 
 /** צורות לאפשרויות צבע, כדי שלעולם לא נסתמך על צבע בלבד. */
 export type OptionShape = 'circle' | 'square' | 'star' | 'heart' | 'flower' | 'diamond'
@@ -45,6 +49,8 @@ export interface TaskOption {
   speak?: string
   /** מספר סידורי מוצג, למשימות שתי מילים. */
   badge?: string
+  /** קנה מידה לאימוג'י. משמש למשימות גדול וקטן. */
+  scale?: number
 }
 
 export interface MatchPair {
@@ -291,6 +297,56 @@ function makeMatch(areaId: string, spec: AreaTaskSpec, word: Word): Task {
   }
 }
 
+/**
+ * אתגר המשפטים. שומעים משפט שלם ובוחרים את הסצנה שמתאימה לו.
+ * ההסחות הן משפטים אחרים מאותו אזור, ולכן זו בדיקת הבנה אמיתית
+ * ולא ניחוש: "Sit down" מול כיסא, אדם עומד וספר פתוח.
+ */
+function makePhraseMatch(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const distractors = resolveDistractors(word, spec, 2)
+  const options: TaskOption[] = shuffle([
+    { id: word.id, correct: true, emoji: word.emoji, label: word.hebrew, english: word.english },
+    ...distractors.map((d) => ({ id: d.id, correct: false, emoji: d.emoji, label: d.hebrew, english: d.english })),
+  ])
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'phrase-match',
+    areaId,
+    wordId: word.id,
+    promptHe: 'הקשיבי למשפט ובחרי את התמונה שמתאימה לו',
+    speakOnStart: speakTextFor(word),
+    options,
+    hints: [
+      'בואי נקשיב למשפט שוב, לאט לאט 👂',
+      `רמז: המשפט אומר "${word.hebrew}"`,
+      'השארתי לך רק שתי אפשרויות 💛',
+    ],
+  }
+}
+
+/**
+ * גדול וקטן. אותו עצם בדיוק, בשני גדלים, כדי שהבחירה תהיה על גודל
+ * ולא על צורה או צבע. התוויות בעברית נשארות כדי שלא נסתמך על הגודל בלבד.
+ */
+function makeSizePick(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const other = resolveDistractors(word, spec, 1)[0]
+  const scaleFor = (w: Word): number => (w.sizeHint === 'small' ? 0.5 : 1.5)
+  const options = shuffle([
+    { id: word.id, correct: true, emoji: word.emoji, label: word.hebrew, english: word.english, scale: scaleFor(word) },
+    { id: other.id, correct: false, emoji: word.emoji, label: other.hebrew, english: other.english, scale: scaleFor(other) },
+  ])
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'size-pick',
+    areaId,
+    wordId: word.id,
+    promptHe: 'הקשיבי ובחרי: גדול או קטן',
+    speakOnStart: speakTextFor(word),
+    options,
+    hints: standardHints(word),
+  }
+}
+
 function makeSayIt(areaId: string, _spec: AreaTaskSpec, word: Word): Task {
   return {
     key: nextKey(areaId, 'say-it'),
@@ -322,6 +378,10 @@ export function createTask(areaId: string, spec: AreaTaskSpec): Task {
       return makeCounting(areaId, spec, word)
     case 'match-word-object':
       return makeMatch(areaId, spec, word)
+    case 'phrase-match':
+      return makePhraseMatch(areaId, spec, word)
+    case 'size-pick':
+      return makeSizePick(areaId, spec, word)
     case 'say-it':
       return makeSayIt(areaId, spec, word)
   }
@@ -340,7 +400,11 @@ export function createPracticeTask(areaId: string, wordId: string, avoidType?: T
         ? ['counting', 'listen-pick-image']
         : word.category === 'colors'
           ? ['color-pick', 'two-words', 'say-it']
-          : ['listen-pick-image', 'two-words', 'say-it']
+          : word.category === 'phrases'
+            ? ['phrase-match', 'say-it']
+            : word.sizeHint
+              ? ['size-pick', 'say-it']
+              : ['listen-pick-image', 'two-words', 'say-it']
 
   const usable = candidates.filter((t) => t !== avoidType)
   const type = (usable.length > 0 ? usable : candidates)[Math.floor(Math.random() * (usable.length > 0 ? usable.length : candidates.length))]

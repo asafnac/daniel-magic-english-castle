@@ -249,6 +249,41 @@ export function sfxClick(): void {
   envTone(880, ctx.currentTime, 0.09, 0.09, 'sine', bus)
 }
 
+// ------------------------------------------------------------- הקלטות אמיתיות
+
+/**
+ * נקודת החיבור להקלטות אמיתיות.
+ *
+ * כרגע כל המילים מוקראות בקריינות של הדפדפן, וזה עובד בלי אף קובץ
+ * ובלי תלות ברשת. אם יתווספו הקלטות של מורה, מייבאים אותן כאן:
+ *
+ *   import helloMp3 from '../assets/audio/hello.mp3'
+ *   export const RECORDED_AUDIO: Record<string, string> = { hello: helloMp3 }
+ *
+ * המשחק יעדיף אוטומטית הקלטה על הקריינות הסינתטית עבור כל מילה שיש
+ * לה audioKey שמופיע כאן. מילה בלי הקלטה ממשיכה לעבוד כרגיל, ולכן
+ * אפשר להוסיף הקלטות בהדרגה ולא הכול בבת אחת.
+ */
+export const RECORDED_AUDIO: Record<string, string> = {}
+
+export function hasRecording(audioKey: string | undefined): boolean {
+  return !!audioKey && audioKey in RECORDED_AUDIO
+}
+
+/** מנגן הקלטה. מחזיר false אם אין הקלטה או אם הניגון נכשל. */
+export function playRecording(audioKey: string | undefined, onEnd?: () => void): boolean {
+  if (!audioKey || !(audioKey in RECORDED_AUDIO)) return false
+  try {
+    const el = new Audio(RECORDED_AUDIO[audioKey])
+    el.addEventListener('ended', () => onEnd?.())
+    el.addEventListener('error', () => onEnd?.())
+    void el.play()
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** צליל סיום אזור: פאנפרה קצרה ושמחה. */
 export function sfxAreaComplete(): void {
   const bus = sfxAllowed()

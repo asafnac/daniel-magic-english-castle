@@ -1,7 +1,8 @@
 /** כפתור רמקול. מופיע ליד כל מילה במשחק, תמיד באותו מקום ובאותה צורה. */
 
-import { duckMusic } from '../../learning/audio'
+import { duckMusic, playRecording } from '../../learning/audio'
 import { speakEnglish, speakHebrew } from '../../learning/speech'
+import { findWord } from '../../learning/vocabulary'
 import { el } from '../dom'
 
 export function speakerButton(
@@ -21,14 +22,22 @@ export function speakerButton(
   return btn
 }
 
-/** משמיע מילה באנגלית ומסמן את הכפתור בזמן ההשמעה. */
-export function playWord(text: string, btn?: HTMLElement): void {
+/**
+ * משמיע מילה באנגלית ומסמן את הכפתור בזמן ההשמעה.
+ * אם קיימת הקלטה אמיתית למילה, היא מנוצחת על הקריינות הסינתטית.
+ * `wordId` הוא אופציונלי, ומשמש רק כדי למצוא את ההקלטה.
+ */
+export function playWord(text: string, btn?: HTMLElement, wordId?: string): void {
   btn?.classList.add('speaking')
   duckMusic(true)
   const done = () => {
     btn?.classList.remove('speaking')
     duckMusic(false)
   }
+
+  const audioKey = wordId ? findWord(wordId)?.audioKey : undefined
+  if (playRecording(audioKey, done)) return
+
   const started = speakEnglish(text, { onEnd: done })
   if (!started) window.setTimeout(done, 400)
 }

@@ -77,7 +77,7 @@ export const AREAS: AreaDef[] = [
     intro: 'היי! אני ברק, דרקון קטן וידידותי. כל החיות שלי מדברות אנגלית.',
     done: 'כל החיות שמחות! פתחת את הדרך למטבח הקסם.',
     guide: { name: 'ברק הדרקון', emoji: '🐲' },
-    words: ['cat', 'dog', 'bird', 'fish', 'horse', 'rabbit', 'lion', 'monkey'],
+    words: ['cat', 'dog', 'bird', 'fish', 'horse', 'rabbit', 'lion', 'monkey', 'cow', 'duck'],
     tasks: [
       { type: 'listen-pick-image', word: 'cat', distractors: ['dog', 'bird'] },
       { type: 'listen-pick-image', word: 'dog', distractors: ['cat', 'fish', 'bird'] },
@@ -89,6 +89,10 @@ export const AREAS: AreaDef[] = [
       { type: 'two-words', word: 'lion', distractors: ['monkey'] },
       { type: 'counting', word: 'three', variant: 'count-objects', distractors: ['two', 'four', 'five'], countEmoji: '🐵' },
       { type: 'listen-pick-image', word: 'monkey', distractors: ['lion', 'horse', 'rabbit'] },
+      // חיות החווה מתוכנית Jet. cat, dog, bird ו-horse כבר נלמדו למעלה,
+      // ולכן כאן נוספות רק החיות החדשות והמשפטים.
+      { type: 'listen-pick-image', word: 'cow', distractors: ['horse', 'duck', 'dog'] },
+      { type: 'two-words', word: 'duck', distractors: ['bird'] },
     ],
   },
 
@@ -165,6 +169,116 @@ export const AREAS: AreaDef[] = [
       { type: 'letter-sound', word: 'letter_i', distractors: ['letter_g', 'letter_h'] },
       { type: 'letter-sound', word: 'letter_k', distractors: ['letter_j', 'letter_l'] },
       { type: 'letter-sound', word: 'letter_l', distractors: ['letter_j', 'letter_k'] },
+    ],
+  },
+
+  // ============================================================
+  //  האזורים הבאים מגיעים מתוכנית הלימודים של Jet, רמת Pre-A1.
+  //  הם נוספו בסוף ולא באמצע במכוון: הסדר קובע את הפריסה בעולם
+  //  ואת שרשרת הפתיחה, ושינוי הסדר של אזור קיים היה מבלבל את
+  //  ההתקדמות שדניאל כבר אספה.
+  // ============================================================
+
+  // ======================= 6. שער הידידות =======================
+  {
+    id: 'friends-gate',
+    order: 6,
+    title: 'שער הידידות',
+    emoji: '👋',
+    accent: '#f2a65a',
+    intro: 'שלום דניאל! אני נוגה. כאן לומדים איך אומרים שלום ואיך מכירים חברים חדשים.',
+    done: 'עכשיו את יודעת להגיד שלום באנגלית! הדרך לבית פתוחה.',
+    guide: { name: 'נוגה השומרת', emoji: '🧡' },
+    words: ['hello', 'goodbye', 'boy', 'girl', 'name', 'yes', 'no'],
+    tasks: [
+      { type: 'listen-pick-image', word: 'hello', distractors: ['goodbye', 'yes'] },
+      { type: 'two-words', word: 'goodbye', distractors: ['hello'] },
+      { type: 'listen-pick-image', word: 'girl', distractors: ['boy', 'baby', 'mother'] },
+      { type: 'listen-pick-image', word: 'boy', distractors: ['girl', 'baby', 'father'] },
+      { type: 'two-words', word: 'yes', distractors: ['no'] },
+      { type: 'listen-pick-image', word: 'no', distractors: ['yes', 'hello', 'goodbye'] },
+      { type: 'say-it', word: 'name' },
+      { type: 'phrase-match', word: 'phrase_i_am_a_girl', distractors: ['phrase_i_am_a_boy', 'phrase_this_is_my_mother'] },
+      { type: 'phrase-match', word: 'phrase_i_am_a_boy', distractors: ['phrase_i_am_a_girl', 'phrase_a_big_house'] },
+      { type: 'say-it', word: 'phrase_whats_your_name' },
+    ],
+  },
+
+  // ======================= 7. אגף הבית =======================
+  {
+    id: 'family-wing',
+    order: 7,
+    title: 'אגף הבית',
+    emoji: '🏠',
+    accent: '#7ec8a9',
+    intro: 'ברוכה הבאה הביתה! אני מיץ׳. כאן גרה המשפחה, ולומדים איך קוראים לכולם באנגלית.',
+    done: 'כל המשפחה מחייכת! בואי נמשיך לגן ההפכים.',
+    guide: { name: 'מיץ׳ החתולה', emoji: '🐈' },
+    words: ['mother', 'father', 'brother', 'sister', 'baby', 'house'],
+    tasks: [
+      { type: 'listen-pick-image', word: 'mother', distractors: ['father', 'sister', 'baby'] },
+      { type: 'listen-pick-image', word: 'father', distractors: ['mother', 'brother', 'boy'] },
+      { type: 'two-words', word: 'brother', distractors: ['sister'] },
+      { type: 'listen-pick-image', word: 'sister', distractors: ['brother', 'mother', 'baby'] },
+      { type: 'listen-pick-image', word: 'baby', distractors: ['boy', 'girl', 'mother'] },
+      { type: 'listen-pick-image', word: 'house', distractors: ['door', 'tree', 'classroom'] },
+      { type: 'say-it', word: 'house' },
+      { type: 'match-word-object', word: 'mother', pairWords: ['mother', 'father', 'baby'] },
+      { type: 'phrase-match', word: 'phrase_this_is_my_mother', distractors: ['phrase_a_big_house', 'phrase_i_am_a_boy'] },
+    ],
+  },
+
+  // ======================= 8. גן ההפכים =======================
+  // התוכן הזה קיבל אזור נפרד ולא נדחס לאגף הבית, כי אזור של שלוש עשרה
+  // משימות מתחיל לעייף ילדה בת שמונה, וזה בדיוק מה שגורם לה להפסיק.
+  {
+    id: 'opposites-garden',
+    order: 8,
+    title: 'גן ההפכים',
+    emoji: '🎭',
+    accent: '#c79bea',
+    intro: 'היי! אני זוזו. בגן שלי כל דבר בא בזוגות: גדול וקטן, שמח ועצוב.',
+    done: 'למדת את כל ההפכים! נשארה רק הכיתה.',
+    guide: { name: 'זוזו הפנדה', emoji: '🐼' },
+    words: ['big', 'small', 'happy', 'sad'],
+    tasks: [
+      { type: 'size-pick', word: 'big', distractors: ['small'] },
+      { type: 'size-pick', word: 'small', distractors: ['big'] },
+      { type: 'two-words', word: 'happy', distractors: ['sad'] },
+      { type: 'listen-pick-image', word: 'sad', distractors: ['happy', 'baby', 'girl'] },
+      { type: 'say-it', word: 'happy' },
+      { type: 'phrase-match', word: 'phrase_a_big_house', distractors: ['phrase_this_is_my_mother', 'phrase_a_happy_dog'] },
+      { type: 'phrase-match', word: 'phrase_a_happy_dog', distractors: ['phrase_the_cow_is_big', 'phrase_a_big_house'] },
+      { type: 'phrase-match', word: 'phrase_the_cow_is_big', distractors: ['phrase_a_happy_dog', 'phrase_a_big_house'] },
+    ],
+  },
+
+  // ======================= 9. כיתת הקסם =======================
+  {
+    id: 'magic-classroom',
+    order: 9,
+    title: 'כיתת הקסם',
+    emoji: '🎒',
+    accent: '#6aa9dd',
+    intro: 'שלום! אני מר בלוט, המורה כאן. בואי נלמד מה יש בכיתה ובתיק.',
+    done: 'סיימת את כל הטירה, כולל הכיתה! את אלופה אמיתית.',
+    guide: { name: 'מר בלוט המורה', emoji: '🌰' },
+    words: ['bag', 'pen', 'pencil', 'teacher', 'classroom', 'sit', 'stand', 'book'],
+    tasks: [
+      { type: 'listen-pick-image', word: 'bag', distractors: ['book', 'pencil', 'house'] },
+      { type: 'two-words', word: 'pen', distractors: ['pencil'] },
+      { type: 'listen-pick-image', word: 'pencil', distractors: ['pen', 'book', 'bag'] },
+      { type: 'listen-pick-image', word: 'teacher', distractors: ['mother', 'girl', 'boy'] },
+      { type: 'listen-pick-image', word: 'classroom', distractors: ['house', 'door', 'bag'] },
+      { type: 'two-words', word: 'sit', distractors: ['stand'] },
+      { type: 'say-it', word: 'stand' },
+      { type: 'match-word-object', word: 'bag', pairWords: ['bag', 'pencil', 'book'] },
+      { type: 'phrase-match', word: 'phrase_sit_down', distractors: ['phrase_stand_up', 'phrase_open_your_book'] },
+      { type: 'phrase-match', word: 'phrase_open_your_book', distractors: ['phrase_sit_down', 'phrase_stand_up'] },
+      // המשפטים האלה מחברים מספר, צבע וחפץ מהכיתה, ולכן הם מסכמים
+      // גם את גן הצבעים וגם את מגדל המספרים בלי ללמד אותם מחדש.
+      { type: 'phrase-match', word: 'phrase_one_red_pencil', distractors: ['phrase_three_blue_bags', 'phrase_open_your_book'] },
+      { type: 'phrase-match', word: 'phrase_three_blue_bags', distractors: ['phrase_one_red_pencil', 'phrase_sit_down'] },
     ],
   },
 ]

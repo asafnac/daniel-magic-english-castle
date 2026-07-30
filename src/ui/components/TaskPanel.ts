@@ -179,6 +179,12 @@ export class TaskPanel {
       case 'letter-sound':
         this.body.appendChild(this.buildOptions(task, 'letter-grid'))
         break
+      case 'phrase-match':
+        this.body.appendChild(this.buildOptions(task, 'phrase-grid'))
+        break
+      case 'size-pick':
+        this.body.appendChild(this.buildOptions(task, 'size-grid'))
+        break
       default:
         this.body.appendChild(this.buildOptions(task, 'image-grid'))
         break
@@ -228,10 +234,17 @@ export class TaskPanel {
       } else if (task.type === 'letter-sound') {
         btn.appendChild(el('span', { class: 'option-letter', text: opt.emoji ?? '' }))
       } else {
-        btn.appendChild(el('span', { class: 'option-emoji', text: opt.emoji ?? '' }))
+        const glyph = el('span', { class: 'option-emoji', text: opt.emoji ?? '' })
+        // במשימת גודל אותו עצם מוצג בשני קני מידה, וזה כל מה שמבדיל ביניהם
+        if (opt.scale) glyph.style.fontSize = `${opt.scale * 3.6}rem`
+        btn.appendChild(glyph)
       }
 
-      if (opt.color && opt.label) btn.appendChild(el('span', { class: 'option-label', text: opt.label }))
+      // תווית בעברית רק שם שבו התפיסה עצמה היא המחסום: צבע, שאותו ילדה
+      // עם עיוורון צבעים לא תבחין בו, וגודל, שהוא מושג מופשט שכדאי לעגן
+      // בעברית. בסצנות של משפטים התמונה חד משמעית, ותווית רק תעמיס אותה.
+      const needsLabel = !!opt.color || !!opt.scale
+      if (needsLabel && opt.label) btn.appendChild(el('span', { class: 'option-label', text: opt.label }))
       if (showEnglish && opt.english) btn.appendChild(el('span', { class: 'option-english', text: opt.english }))
 
       btn.addEventListener('click', () => {
@@ -563,6 +576,8 @@ function pickCheer(): string {
 
 function optionAria(task: Task, opt: TaskOption, i: number): string {
   if (opt.color) return `הצבע ${opt.label ?? ''}`
+  if (opt.scale) return `${opt.label ?? ''}`
+  if (task.type === 'phrase-match') return opt.label ?? `אפשרות ${i + 1}`
   if (opt.speak) return `אפשרות ${opt.badge ?? i + 1}, לחצי כדי לשמוע`
   if (task.type === 'letter-sound') return `האות ${opt.emoji}`
   if (opt.repeat && opt.repeat > 1) return `קבוצה של ${opt.repeat}`

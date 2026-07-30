@@ -16,13 +16,15 @@ import { TaskPanel } from '../ui/components/TaskPanel'
 import { toast } from '../ui/components/Toast'
 import { clear, el } from '../ui/dom'
 import { buildCharacterCreator } from '../ui/screens/CharacterCreator'
+import { buildLearnIntro } from '../ui/screens/LearnIntro'
+import { buildMapScreen } from '../ui/screens/MapScreen'
 import { buildPauseMenu } from '../ui/screens/PauseMenu'
 import { buildProgressScreen } from '../ui/screens/ProgressScreen'
 import { buildSettingsScreen } from '../ui/screens/SettingsScreen'
 import { buildTitleScreen } from '../ui/screens/TitleScreen'
 import { DEFAULT_AVATAR } from './avatarConfig'
 
-type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings'
+type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn'
 
 export class App {
   private worldHost: HTMLElement
@@ -191,17 +193,69 @@ export class App {
   private startArea(areaId: string): void {
     if (!this.world || !this.taskPanel) return
     if (this.taskPanel.isOpen) return
+    if (this.current === 'learn') return
     const ap = areaProgress(areaId)
     if (!ap.unlocked) {
       toast('השער הזה עדיין נעול. בואי נסיים קודם את האזור הקודם 🔒')
       return
     }
 
+    // בפעם הראשונה באזור עוברים קודם על המילים בלי שאלות ובלי יהלומים.
+    // להיפגש עם מילה חדשה בתוך מבחן זה מתכון לתסכול.
+    if (ap.completedTasks === 0) {
+      this.showLearnIntro(areaId)
+      return
+    }
+    this.openTasks(areaId)
+  }
+
+  private showLearnIntro(areaId: string): void {
+    this.current = 'learn'
+    this.world?.setInputEnabled(false)
+    const area = getArea(areaId)
+    this.hud?.setArea(area.title, area.emoji)
+    this.setScreen(
+      buildLearnIntro({
+        areaId,
+        onStart: () => {
+          this.current = 'world'
+          this.setScreen(null)
+          this.openTasks(areaId)
+        },
+        onSkip: () => {
+          this.current = 'world'
+          this.setScreen(null)
+          this.openTasks(areaId)
+        },
+      }),
+    )
+  }
+
+  private openTasks(areaId: string): void {
+    if (!this.world || !this.taskPanel) return
     const area = getArea(areaId)
     this.session = new AreaSession(areaId)
     this.world.setInputEnabled(false)
     this.hud?.setArea(area.title, area.emoji)
     this.taskPanel.open(this.session)
+  }
+
+  private showMap(): void {
+    this.current = 'map'
+    this.world?.stop()
+    this.worldHost.classList.add('hidden')
+    this.setScreen(
+      buildMapScreen({
+        onTravel: (areaId) => {
+          this.showWorld()
+          this.world?.teleportToArea(areaId)
+          const area = getArea(areaId)
+          this.hud?.setArea(area.title, area.emoji)
+          toast(`${area.emoji} ${area.title}`)
+        },
+        onBack: () => this.showWorld(),
+      }),
+    )
   }
 
   private closeTask(): void {
@@ -251,6 +305,10 @@ export class App {
       onResume: () => {
         this.closePause()
         this.world?.setInputEnabled(true)
+      },
+      onMap: () => {
+        this.closePause()
+        this.showMap()
       },
       onCustomize: () => {
         this.closePause()

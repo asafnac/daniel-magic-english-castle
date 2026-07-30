@@ -29,20 +29,36 @@ export interface AreaLayout extends Zone {
   ground: number
   wallColor: number
   accent: number
-  theme: 'garden' | 'animals' | 'kitchen' | 'numbers' | 'library'
+  theme: 'garden' | 'animals' | 'kitchen' | 'numbers' | 'library' | 'friends' | 'home' | 'opposites' | 'classroom'
   guide: { x: number; z: number }
   /** הגשר והשער שמובילים לאזור הבא. חסר באזור האחרון. */
   gate?: { zStart: number; zEnd: number; z: number }
 }
 
-const THEMES: AreaLayout['theme'][] = ['garden', 'animals', 'kitchen', 'numbers', 'library']
+const THEMES: AreaLayout['theme'][] = [
+  'garden',
+  'animals',
+  'kitchen',
+  'numbers',
+  'library',
+  'friends',
+  'home',
+  'opposites',
+  'classroom',
+]
 
+// פלטה משלה לכל אזור, ולא חזרה מודולרית על חמש, כדי ששני אזורים
+// לא ייראו זהים וכדי שקל יהיה לזהות איפה נמצאים במפה.
 const PALETTES: { ground: number; wall: number; accent: number }[] = [
   { ground: 0x8fd98f, wall: 0xf7c3dd, accent: 0xf487c0 }, // גן הצבעים
   { ground: 0xa8d879, wall: 0xbfe6d5, accent: 0x4fc3a1 }, // חצר החיות
   { ground: 0xf0d2a8, wall: 0xffd9b0, accent: 0xf4913a }, // מטבח הקסם
   { ground: 0xb9dcf5, wall: 0xc9e2fb, accent: 0x5aa9f0 }, // מגדל המספרים
   { ground: 0xd8c9f2, wall: 0xe3d7fb, accent: 0x9b5de5 }, // ספריית האותיות
+  { ground: 0xf7d9a8, wall: 0xffe4c0, accent: 0xf2a65a }, // שער הידידות
+  { ground: 0xa9dcc4, wall: 0xd2f0e2, accent: 0x7ec8a9 }, // אגף הבית
+  { ground: 0xe0cdf6, wall: 0xf0e4ff, accent: 0xc79bea }, // גן ההפכים
+  { ground: 0xc2ddf2, wall: 0xdcebfa, accent: 0x6aa9dd }, // כיתת הקסם
 ]
 
 export const COURTYARD: Zone = {

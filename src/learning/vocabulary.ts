@@ -8,7 +8,18 @@
  * את ה-id שלה לרשימת המילים של אזור כלשהו ב-areas.ts.
  */
 
-export type Category = 'colors' | 'animals' | 'food' | 'numbers' | 'letters' | 'objects'
+export type Category =
+  | 'colors'
+  | 'animals'
+  | 'food'
+  | 'numbers'
+  | 'letters'
+  | 'objects'
+  | 'greetings'
+  | 'family'
+  | 'school'
+  | 'describing'
+  | 'phrases'
 
 export interface Word {
   /** מזהה ייחודי. משמש בשמירה ב-localStorage, אז עדיף לא לשנות אחרי שמשחקים. */
@@ -32,6 +43,18 @@ export interface Word {
   count?: number
   /** לאותיות בלבד: האימוג'י של המילה המדגימה. */
   letterEmoji?: string
+  /**
+   * מזהה הקלטה. כרגע כל המילים מוקראות בקריינות הדפדפן, וזה עובד
+   * בלי אף קובץ. אם בעתיד תהיה הקלטה אמיתית של מורה, מוסיפים אותה
+   * ל-RECORDED_AUDIO ב-audio.ts תחת המזהה הזה, והמשחק יעדיף אותה
+   * על הקריינות הסינתטית בלי שינוי קוד.
+   */
+  audioKey?: string
+  /**
+   * למילות גודל: באיזה קנה מידה להציג את האימוג'י.
+   * כך "גדול" ו"קטן" הם אותו עצם בשני גדלים, וזה מלמד גודל ולא צורה.
+   */
+  sizeHint?: 'big' | 'small'
 }
 
 export const WORDS: Word[] = [
@@ -106,6 +129,64 @@ export const WORDS: Word[] = [
   { id: 'letter_j', english: 'J', hebrew: 'האות J', category: 'letters', difficulty: 3, emoji: 'J', audioText: 'J', sentence: 'J is for juice', letterEmoji: '🧃' },
   { id: 'letter_k', english: 'K', hebrew: 'האות K', category: 'letters', difficulty: 3, emoji: 'K', audioText: 'K', sentence: 'K is for key', letterEmoji: '🔑' },
   { id: 'letter_l', english: 'L', hebrew: 'האות L', category: 'letters', difficulty: 3, emoji: 'L', audioText: 'L', sentence: 'L is for lion', letterEmoji: '🦁' },
+
+  // ============================================================
+  //  תוכנית הלימודים של Jet, רמת Pre-A1
+  //  ה-visualHint מהסילבוס הומר לאימוג'י של מערכת ההפעלה,
+  //  כדי לשמור על משחק בלי אף נכס חיצוני.
+  // ============================================================
+
+  // ---------- Jet 1: נימוסים והיכרות ----------
+  { id: 'hello', english: 'hello', hebrew: 'שלום', category: 'greetings', difficulty: 1, emoji: '👋', audioKey: 'hello' },
+  { id: 'goodbye', english: 'goodbye', hebrew: 'להתראות', category: 'greetings', difficulty: 1, emoji: '🙋', audioKey: 'goodbye' },
+  { id: 'yes', english: 'yes', hebrew: 'כן', category: 'greetings', difficulty: 1, emoji: '✅', audioKey: 'yes' },
+  { id: 'no', english: 'no', hebrew: 'לא', category: 'greetings', difficulty: 1, emoji: '❌', audioKey: 'no' },
+  { id: 'name', english: 'name', hebrew: 'שם', category: 'greetings', difficulty: 2, emoji: '🏷️', audioKey: 'name' },
+  { id: 'boy', english: 'boy', hebrew: 'ילד', category: 'family', difficulty: 1, emoji: '👦', audioKey: 'boy' },
+  { id: 'girl', english: 'girl', hebrew: 'ילדה', category: 'family', difficulty: 1, emoji: '👧', audioKey: 'girl' },
+
+  // ---------- Jet 2: הבית והמשפחה ----------
+  { id: 'mother', english: 'mother', hebrew: 'אמא', category: 'family', difficulty: 1, emoji: '👩', audioKey: 'mother' },
+  { id: 'father', english: 'father', hebrew: 'אבא', category: 'family', difficulty: 1, emoji: '👨', audioKey: 'father' },
+  { id: 'brother', english: 'brother', hebrew: 'אח', category: 'family', difficulty: 2, emoji: '🧒', audioKey: 'brother' },
+  { id: 'sister', english: 'sister', hebrew: 'אחות', category: 'family', difficulty: 2, emoji: '👧🏻', audioKey: 'sister' },
+  { id: 'baby', english: 'baby', hebrew: 'תינוק', category: 'family', difficulty: 1, emoji: '👶', audioKey: 'baby' },
+  { id: 'house', english: 'house', hebrew: 'בית', category: 'objects', difficulty: 1, emoji: '🏠', audioKey: 'house' },
+  // גדול וקטן חייבים להיות אותו עצם בשני גדלים, אחרת זה מלמד צורה ולא גודל.
+  // שני אימוג'ים שונים שמוצגים באותו גודל גופן נראים פשוט כשני דברים שונים.
+  { id: 'big', english: 'big', hebrew: 'גדול', category: 'describing', difficulty: 1, emoji: '🔵', audioKey: 'big', sizeHint: 'big' },
+  { id: 'small', english: 'small', hebrew: 'קטן', category: 'describing', difficulty: 1, emoji: '🔵', audioKey: 'small', sizeHint: 'small' },
+  { id: 'happy', english: 'happy', hebrew: 'שמח', category: 'describing', difficulty: 1, emoji: '😊', audioKey: 'happy' },
+  { id: 'sad', english: 'sad', hebrew: 'עצוב', category: 'describing', difficulty: 1, emoji: '😢', audioKey: 'sad' },
+
+  // ---------- Jet 3: בית הספר ----------
+  { id: 'bag', english: 'bag', hebrew: 'תיק', category: 'school', difficulty: 1, emoji: '🎒', audioKey: 'bag' },
+  { id: 'pen', english: 'pen', hebrew: 'עט', category: 'school', difficulty: 2, emoji: '🖊️', audioKey: 'pen' },
+  { id: 'pencil', english: 'pencil', hebrew: 'עיפרון', category: 'school', difficulty: 2, emoji: '✏️', audioKey: 'pencil' },
+  { id: 'teacher', english: 'teacher', hebrew: 'מורה', category: 'school', difficulty: 2, emoji: '👩‍🏫', audioKey: 'teacher' },
+  { id: 'classroom', english: 'classroom', hebrew: 'כיתה', category: 'school', difficulty: 3, emoji: '🏫', audioKey: 'classroom' },
+  { id: 'sit', english: 'sit', hebrew: 'לשבת', category: 'school', difficulty: 2, emoji: '🪑', audioKey: 'sit' },
+  { id: 'stand', english: 'stand', hebrew: 'לעמוד', category: 'school', difficulty: 2, emoji: '🧍', audioKey: 'stand' },
+
+  // ---------- Jet 5: חיות החווה ----------
+  { id: 'cow', english: 'cow', hebrew: 'פרה', category: 'animals', difficulty: 1, emoji: '🐄', audioKey: 'cow' },
+  { id: 'duck', english: 'duck', hebrew: 'ברווז', category: 'animals', difficulty: 1, emoji: '🦆', audioKey: 'duck' },
+
+  // ---------- משפטים ----------
+  // משפט הוא פריט רגיל לכל דבר, ולכן כל מנגנוני המשחק עובדים עליו
+  // בלי קוד מיוחד. ה-emoji הוא הסצנה שמייצגת אותו.
+  { id: 'phrase_i_am_a_girl', english: 'I am a girl', hebrew: 'אני ילדה', category: 'phrases', difficulty: 1, emoji: '👧' },
+  { id: 'phrase_i_am_a_boy', english: 'I am a boy', hebrew: 'אני ילד', category: 'phrases', difficulty: 1, emoji: '👦' },
+  { id: 'phrase_whats_your_name', english: "What's your name?", hebrew: 'איך קוראים לך?', category: 'phrases', difficulty: 2, emoji: '🏷️' },
+  { id: 'phrase_this_is_my_mother', english: 'This is my mother', hebrew: 'זאת אמא שלי', category: 'phrases', difficulty: 2, emoji: '👩' },
+  { id: 'phrase_a_big_house', english: 'A big house', hebrew: 'בית גדול', category: 'phrases', difficulty: 1, emoji: '🏠' },
+  { id: 'phrase_sit_down', english: 'Sit down', hebrew: 'שבי', category: 'phrases', difficulty: 1, emoji: '🪑' },
+  { id: 'phrase_stand_up', english: 'Stand up', hebrew: 'קומי', category: 'phrases', difficulty: 1, emoji: '🧍' },
+  { id: 'phrase_open_your_book', english: 'Open your book', hebrew: 'פתחי את הספר', category: 'phrases', difficulty: 2, emoji: '📖' },
+  { id: 'phrase_one_red_pencil', english: 'One red pencil', hebrew: 'עיפרון אדום אחד', category: 'phrases', difficulty: 2, emoji: '1️⃣✏️' },
+  { id: 'phrase_three_blue_bags', english: 'Three blue bags', hebrew: 'שלושה תיקים כחולים', category: 'phrases', difficulty: 3, emoji: '3️⃣🎒' },
+  { id: 'phrase_a_happy_dog', english: 'A happy dog', hebrew: 'כלב שמח', category: 'phrases', difficulty: 1, emoji: '🐶😊' },
+  { id: 'phrase_the_cow_is_big', english: 'The cow is big', hebrew: 'הפרה גדולה', category: 'phrases', difficulty: 2, emoji: '🐄' },
 ]
 
 const BY_ID = new Map<string, Word>(WORDS.map((w) => [w.id, w]))

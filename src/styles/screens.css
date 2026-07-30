@@ -622,6 +622,194 @@
   grid-area: right;
 }
 
+/* ================= מסך היכרות עם המילים ================= */
+
+.learn-screen {
+  --accent: var(--pink);
+  gap: 14px;
+  /* העולם התלת-ממדי נשאר חי מתחת למסך הזה, ולכן צריך רקע כדי
+     שהטקסט יישאר קריא ולא יתערבב עם הסצנה. */
+  background: rgba(255, 250, 243, 0.93);
+  backdrop-filter: blur(3px);
+}
+
+.learn-header {
+  width: 100%;
+  max-width: 900px;
+  text-align: center;
+  border-top: 8px solid var(--accent);
+}
+
+.learn-emoji {
+  font-size: 56px;
+  animation: bob 2.4s ease-in-out infinite;
+}
+
+.learn-intro-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  background: var(--pink-soft);
+  border-radius: 18px;
+  padding: 10px 14px;
+  margin: 8px 0;
+}
+
+.learn-intro-text {
+  margin: 0;
+  font-weight: 700;
+  text-align: start;
+}
+
+.learn-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.learn-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 5px solid #eadff7;
+  background: #fff;
+  border-radius: 22px;
+  padding: 12px 10px;
+  min-width: 132px;
+  min-height: 150px;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.learn-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+}
+
+.learn-card.heard {
+  animation: rightAnswer 0.5s ease;
+  border-color: var(--good);
+}
+
+.learn-card-emoji {
+  font-size: 3.4rem;
+  line-height: 1.1;
+}
+
+/* המילה באנגלית מוצגת כאן תמיד. זה המסך היחיד שבו זו חשיפה לצורת
+   המילה ולא דרישה לקרוא אותה כדי לענות. */
+.learn-card-en {
+  font-size: 21px;
+  font-weight: 900;
+  color: var(--purple-deep);
+  direction: ltr;
+}
+
+.learn-card-he {
+  font-size: 16px;
+  color: var(--ink-soft);
+}
+
+.learn-card-speaker {
+  font-size: 17px;
+  opacity: 0.6;
+}
+
+/* ================= מפת הטירה ================= */
+
+.map-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.map-card {
+  position: relative;
+  --accent: var(--pink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 5px solid var(--accent);
+  background: #fff;
+  border-radius: 22px;
+  padding: 14px 10px 12px;
+  min-width: 156px;
+  min-height: 168px;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.14s ease;
+}
+
+.map-card:hover:not(:disabled) {
+  transform: translateY(-4px) scale(1.02);
+}
+
+.map-card.locked {
+  border-color: #d8d2e0;
+  background: #f4f1f8;
+  opacity: 0.72;
+  cursor: default;
+}
+
+.map-card-order {
+  position: absolute;
+  top: 8px;
+  inset-inline-start: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+}
+
+.map-card.locked .map-card-order {
+  background: #b9b1c6;
+}
+
+.map-card-emoji {
+  font-size: 46px;
+  line-height: 1.1;
+}
+
+.map-card-title {
+  font-weight: 800;
+  font-size: 17px;
+  text-align: center;
+}
+
+.map-card-bar {
+  display: block;
+  width: 100%;
+  height: 9px;
+  border-radius: 99px;
+  background: #ece4f5;
+  overflow: hidden;
+}
+
+.map-card-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--turquoise), var(--sky));
+}
+
+.map-card-note {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
 /* ================= מסך שגיאה ================= */
 
 .fatal-screen {
