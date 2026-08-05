@@ -169,6 +169,8 @@ window, חלון
 
 השרת נמצא ב-[server/](server/), נכתב בספריית Node הסטנדרטית בלבד בלי אף תלות, והוראות ההתקנה המלאות ב-[server/README.md](server/README.md).
 
+**אם כבר יש לכם אתר עם HTTPS על אותו שרת**, אין צורך בדומיין חדש, ברשומת DNS חדשה או בתעודה חדשה: מוסיפים נתיב כמו `/castle-sync` לאתר הקיים, וזהו.
+
 ```bash
 npm run build:server
 npm run start:server

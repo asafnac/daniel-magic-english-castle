@@ -91,6 +91,58 @@ sudo systemctl status castle-sync
 
 ---
 
+## אם כבר יש לכם אתר עם HTTPS על אותו שרת
+
+זה המקרה הפשוט ביותר, והוא **לא דורש דומיין חדש, לא רשומת DNS חדשה ולא תעודה חדשה**. מוסיפים נתיב לאתר שכבר עובד, והסנכרון יושב תחתיו.
+
+נניח שהאתר הקיים הוא `www.example.co.il`. מוסיפים לתוך בלוק ה-`server` הקיים שלו:
+
+**nginx**
+
+```nginx
+location /castle-sync/ {
+    proxy_pass http://127.0.0.1:8787/;
+    proxy_set_header X-Forwarded-For $remote_addr;
+}
+```
+
+הלוכסן בסוף `proxy_pass` הוא לא קישוט: הוא מה שמסיר את `/castle-sync` מהנתיב לפני שהוא מגיע לשרת. בלעדיו השרת יקבל `/castle-sync/health` ולא ידע מה זה.
+
+**Apache** (צריך `a2enmod proxy proxy_http`)
+
+```apache
+ProxyPass        /castle-sync/ http://127.0.0.1:8787/
+ProxyPassReverse /castle-sync/ http://127.0.0.1:8787/
+```
+
+**Caddy**
+
+```caddyfile
+handle_path /castle-sync/* {
+    reverse_proxy 127.0.0.1:8787
+}
+```
+
+`handle_path` מסיר את הקידומת מעצמו, בשונה מ-`handle`.
+
+ואז ב-systemd מגבילים את המקור לכתובת המשחק:
+
+```ini
+Environment=ALLOW_ORIGIN=https://asafnac.github.io
+```
+
+**במסך ההורים מקלידים ככתובת השרת:** `https://www.example.co.il/castle-sync`
+
+לוכסן מיותר בסוף לא מזיק, המשחק מנקה אותו.
+
+השילוב הזה נבדק מקצה לקצה מול proxy שמסיר קידומת בדיוק כמו nginx: `/health`, יצירת שמירה, דחיפה משני מכשירים עם מיזוג, תשובת preflight של הדפדפן, וכותרת CORS נכונה.
+
+### תת-דומיין, אם מעדיפים הפרדה
+
+`castle.example.co.il` עם רשומת DNS משלו עובד באותה מידה, וההגדרה שלו נמצאת בסעיף הבא. ההבדל היחיד הוא שצריך רשומת DNS ותעודה, ובתמורה הסנכרון לא חולק שם מארח עם האתר הקיים.
+
+---
+
 ## HTTPS — חובה, לא המלצה
 
 המשחק מתארח ב-GitHub Pages תחת HTTPS. דפדפן **חוסם** פנייה מדף מאובטח לכתובת לא מאובטחת, ולכן שרת ב-HTTP פשוט לא יעבוד. וזה טוב: קוד המשפחה הוא הסוד היחיד שמגן על הנתונים, ואסור שיעבור גלוי ברשת.
@@ -160,6 +212,8 @@ tar czf castle-backup-$(date +%F).tar.gz -C /var/lib/castle .
 **"לא הצלחתי להתחבר לשרת".** לבדוק `systemctl status castle-sync`, ואז `curl https://castle.example.com/health` מבחוץ.
 
 **עובד במחשב ולא ב-iPad.** כמעט תמיד HTTPS: תעודה לא תקינה, או שהכתובת שהוקלדה היא `http://`.
+
+**404 על `/health` כשמתארחים תחת נתיב.** כמעט תמיד הלוכסן בסוף `proxy_pass` חסר, ולכן הקידומת לא מוסרת והשרת מקבל נתיב שהוא לא מכיר. ב-Caddy זה `handle` במקום `handle_path`.
 
 **המשחק נטען אבל לא מסנכרן.** אם `ALLOW_ORIGIN` מוגדר, הוא חייב להתאים בדיוק לכתובת שממנה נטען המשחק, כולל הפרוטוקול ובלי לוכסן בסוף.
 
