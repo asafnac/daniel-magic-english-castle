@@ -26,6 +26,8 @@ export type Category =
   | 'grammar'
   /** מילים שההורה הוסיף, למשל הכתבה מבית הספר. */
   | 'custom'
+  /** מילים שקיימות רק כדי לתרגל הבחנה בין שני צלילים דומים. */
+  | 'contrast'
 
 export interface Word {
   /** מזהה ייחודי. משמש בשמירה ב-localStorage, אז עדיף לא לשנות אחרי שמשחקים. */
@@ -231,6 +233,21 @@ export const WORDS: Word[] = [
   { id: 'flag', english: 'flag', hebrew: 'דגל', category: 'sounds', difficulty: 2, emoji: '🚩', sounds: ['f', 'l', 'a', 'g'] },
   { id: 'drum', english: 'drum', hebrew: 'תוף', category: 'sounds', difficulty: 2, emoji: '🥁', sounds: ['d', 'r', 'u', 'm'] },
   { id: 'hand', english: 'hand', hebrew: 'יד', category: 'sounds', difficulty: 2, emoji: '✋', sounds: ['h', 'a', 'n', 'd'] },
+
+  // ---------- זוגות מינימליים ----------
+  // המילים האלה קיימות כדי להעמיד זו מול זו שתי הגיות שדובר עברית
+  // שומע כזהות. tree ו-bed כבר קיימות למעלה ומשמשות גם כאן.
+  { id: 'think', english: 'think', hebrew: 'לחשוב', category: 'contrast', difficulty: 2, emoji: '🤔' },
+  { id: 'sink', english: 'sink', hebrew: 'כיור', category: 'contrast', difficulty: 2, emoji: '🚿' },
+  { id: 'vest', english: 'vest', hebrew: 'אפודה', category: 'contrast', difficulty: 2, emoji: '🦺' },
+  { id: 'west', english: 'west', hebrew: 'מערב', category: 'contrast', difficulty: 2, emoji: '🧭' },
+  { id: 'vet', english: 'vet', hebrew: 'וטרינר', category: 'contrast', difficulty: 2, emoji: '👨‍⚕️' },
+  { id: 'wet', english: 'wet', hebrew: 'רטוב', category: 'contrast', difficulty: 2, emoji: '💦' },
+  { id: 'ship', english: 'ship', hebrew: 'ספינה', category: 'contrast', difficulty: 2, emoji: '🚢' },
+  { id: 'sheep', english: 'sheep', hebrew: 'כבשה', category: 'contrast', difficulty: 2, emoji: '🐑' },
+  { id: 'bin', english: 'bin', hebrew: 'פח', category: 'contrast', difficulty: 2, emoji: '🗑️' },
+  { id: 'bean', english: 'bean', hebrew: 'שעועית', category: 'contrast', difficulty: 2, emoji: '🫘' },
+  { id: 'bad', english: 'bad', hebrew: 'רע', category: 'contrast', difficulty: 2, emoji: '👎' },
 
   // ---------- מילות חיבור ----------
   // אין להן תמונה, ולכן הן היחידות במשחק שמוצגות ככיתוב בלבד.

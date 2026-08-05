@@ -35,6 +35,8 @@ export interface AreaTaskSpec {
   picks?: string[]
   /** למשימת בניית משפט: כרטיסים מיותרים מפורשים. */
   extraCards?: string[]
+  /** למשימות הגייה: מזהה הזוג המינימלי מתוך contrasts.ts. */
+  contrast?: string
 }
 
 export interface AreaDef {
@@ -61,6 +63,8 @@ export interface AreaDef {
   phonicsSet?: 1 | 2 | 3
   /** אזור שמלמד להרכיב משפטים. */
   teachesSentences?: boolean
+  /** אזור שמתרגל הבחנה והגייה בין צלילים דומים. */
+  teachesSounds?: boolean
 }
 
 export const AREAS: AreaDef[] = [
@@ -454,6 +458,37 @@ export const AREAS: AreaDef[] = [
       { type: 'sentence-build', frame: 'the-size-colour-noun', picks: ['the', 'big', 'green', 'bag'], word: 'bag' },
       { type: 'sentence-pick', frame: 'the-size-colour-noun', picks: ['the', 'small', 'yellow', 'pen'], word: 'pen' },
       { type: 'sentence-build', frame: 'the-size-colour-noun', picks: ['the', 'big', 'blue', 'fish'], word: 'fish' },
+    ],
+  },
+
+  // ==================== 15. חדר ההד ====================
+  // האזור היחיד שעוסק בהגייה, וכולו בנוי על זוגות שדובר עברית שומע
+  // כזהים. ההבחנה באוזן קודמת להפקה בפה, כי אי אפשר להגות הבדל
+  // שלא שומעים.
+  {
+    id: 'echo-room',
+    order: 15,
+    title: 'חדר ההד',
+    emoji: '👂',
+    accent: '#5b8fd6',
+    teachesSounds: true,
+    intro: 'כאן מקשיבים ממש ממש טוב. יש מילים באנגלית שנשמעות דומה, ורק מי שמקשיבה בתשומת לב שומעת את ההבדל.',
+    done: 'האוזן שלך נהייתה חדה! עכשיו את שומעת הבדלים שרוב האנשים מפספסים.',
+    guide: { name: 'הד, הינשוף המקשיב', emoji: '🦉' },
+    words: ['three', 'tree', 'think', 'sink', 'vest', 'west', 'vet', 'wet', 'ship', 'sheep', 'bin', 'bean'],
+    tasks: [
+      { type: 'hear-contrast', word: 'three', contrast: 'th-vs-t' },
+      { type: 'hear-contrast', word: 'tree', contrast: 'th-vs-t' },
+      { type: 'hear-contrast', word: 'think', contrast: 'th-vs-s' },
+      { type: 'say-contrast', word: 'three', contrast: 'th-vs-t' },
+      { type: 'hear-contrast', word: 'vest', contrast: 'v-vs-w' },
+      { type: 'hear-contrast', word: 'west', contrast: 'v-vs-w' },
+      { type: 'hear-contrast', word: 'wet', contrast: 'v-vs-w-2' },
+      { type: 'say-contrast', word: 'west', contrast: 'v-vs-w' },
+      { type: 'hear-contrast', word: 'sheep', contrast: 'short-vs-long-i' },
+      { type: 'hear-contrast', word: 'ship', contrast: 'short-vs-long-i' },
+      { type: 'hear-contrast', word: 'bean', contrast: 'short-vs-long-i-2' },
+      { type: 'say-contrast', word: 'sheep', contrast: 'short-vs-long-i' },
     ],
   },
 ]

@@ -14,6 +14,7 @@ import { createList, deleteList, parseWordList } from '../learning/wordbank'
 import { PHONICS_TYPES, createTask, type Task } from '../learning/questions'
 import { PHONEMES, decodableWords, getPhoneme, phonemesUpTo, spellingMatchesSounds, wordsUpTo } from '../learning/phonics'
 import { FRAMES, buildSentence, combinationCount, defaultPicks, neighbours } from '../learning/sentences'
+import { CONTRASTS, pairIsUsable, partnerOf } from '../learning/contrasts'
 import { AreaSession, type TaskSession } from '../learning/session'
 import { WORDS, findWord, getWord } from '../learning/vocabulary'
 import { TaskPanel } from '../ui/components/TaskPanel'
@@ -150,6 +151,56 @@ function run(): void {
       check(`${area.id}/build/${spec.word}: the tray holds every sound the word needs`, build.sounds.every((s) => build.tray.includes(s)))
       check(`${area.id}/build/${spec.word}: the tray also holds tiles that do not belong`, build.tray.length > build.sounds.length)
       check(`${area.id}/build/${spec.word}: the tiles spell the word exactly`, build.sounds.map((s) => getPhoneme(s).grapheme).join('') === build.text)
+    }
+  }
+
+  // ---------------------------------------------------------- זוגות מינימליים
+  check('contrast ids unique', new Set(CONTRASTS.map((c) => c.id)).size === CONTRASTS.length)
+  check('every contrast word exists', CONTRASTS.every((c) => c.pair.every((w) => ids.has(w))))
+  check('a contrast is always between two different words', CONTRASTS.every((c) => c.pair[0] !== c.pair[1]))
+  // אם שתי המילים נראות אותו דבר, הבחירה ביניהן אינה בחירה
+  check(
+    'the two words in a pair look different, so the picture cannot give it away',
+    CONTRASTS.every(pairIsUsable),
+    CONTRASTS.filter((c) => !pairIsUsable(c)).map((c) => c.id).join(','),
+  )
+  check('every contrast explains where the mouth goes', CONTRASTS.every((c) => c.listenHint.length > 10))
+  check('every contrast records why it is hard for a hebrew speaker', CONTRASTS.every((c) => c.why.length > 10))
+  check('partnerOf finds the other side of the pair', CONTRASTS.every((c) => partnerOf(c.id, c.pair[0]) === c.pair[1] && partnerOf(c.id, c.pair[1]) === c.pair[0]))
+
+  // שלוש הקבוצות שדובר עברית באמת מתקשה בהן. אם אחת מהן תיעלם,
+  // נשארנו עם תרגול הגייה כללי שלא מכוון לשום דבר.
+  const why = CONTRASTS.map((c) => c.why).join(' ')
+  check('some pair targets the th sound, which hebrew does not have', why.includes('th'))
+  check('some pair targets w versus v', CONTRASTS.some((c) => c.title.includes('v מול w')))
+  check('some pair targets long versus short vowels', why.includes('תנועה קצרה לתנועה ארוכה') || CONTRASTS.some((c) => c.title.includes('תנועה')))
+
+  const soundAreas = AREAS.filter((a) => a.teachesSounds)
+  check(
+    'pronunciation tasks only live in the area that teaches them',
+    AREAS.every((a) => a.teachesSounds || a.tasks.every((t) => t.type !== 'hear-contrast' && t.type !== 'say-contrast')),
+  )
+  for (const area of soundAreas) {
+    for (const spec of area.tasks) {
+      if (spec.type !== 'hear-contrast' && spec.type !== 'say-contrast') continue
+      const contrast = CONTRASTS.find((c) => c.id === spec.contrast)
+      check(`${area.id}: task names a real contrast`, !!contrast, spec.contrast ?? '(none)')
+      if (!contrast) continue
+      check(`${area.id}/${spec.contrast}: the word belongs to the pair`, contrast.pair.includes(spec.word))
+
+      const task = createTask(area.id, spec)
+      check(`${area.id}/${spec.contrast}: the task explains where the mouth goes`, (task.mouthHint ?? '').length > 0)
+      if (spec.type === 'hear-contrast') {
+        check(`${area.id}/${spec.contrast}: exactly two options, the pair itself`, task.options.length === 2)
+        check(`${area.id}/${spec.contrast}: the wrong option is the partner word`, task.options.some((o) => !o.correct && o.id === partnerOf(contrast.id, spec.word)))
+        // אפשר לשמוע כל אחת מהשתיים בנפרד. בלי זה אין איך להשוות,
+        // וזו כל הדרך ללמוד להבחין בין שני צלילים.
+        check(`${area.id}/${spec.contrast}: both options can be played and compared`, task.options.every((o) => !!o.speak))
+        check(`${area.id}/${spec.contrast}: both options carry a hebrew label`, task.options.every((o) => !!o.label))
+      }
+      if (spec.type === 'say-contrast') {
+        check(`${area.id}/${spec.contrast}: saying it aloud can never be wrong`, task.options.length === 0)
+      }
     }
   }
 
@@ -438,7 +489,7 @@ function run(): void {
       const task = createTask(area.id, spec)
       const correct = task.options.filter((o) => o.correct)
       // בנייה היא הפקה ולא בחירה, ולכן אין לה אפשרויות מוכנות בכלל
-      if (task.type === 'say-it' || task.type === 'match-word-object' || task.type === 'blend-build' || task.type === 'sentence-build') {
+      if (task.type === 'say-it' || task.type === 'say-contrast' || task.type === 'match-word-object' || task.type === 'blend-build' || task.type === 'sentence-build') {
         check(`${area.id}/${spec.type}/${spec.word}: no options needed`, task.options.length === 0)
         if (task.type === 'match-word-object') {
           check(`${area.id}/match/${spec.word}: has pairs`, (task.pairs?.length ?? 0) >= 2)
@@ -889,7 +940,7 @@ function playThroughEveryArea(): void {
  */
 function answerCorrectly(session: TaskSession): void {
   const t = session.task
-  if (t.type === 'say-it') {
+  if (t.type === 'say-it' || t.type === 'say-contrast') {
     session.confirmSaid()
     return
   }
@@ -910,7 +961,7 @@ function answerCorrectly(session: TaskSession): void {
 
 /** אותו דבר, אבל דרך לחיצות אמיתיות על המסך. */
 function answerCorrectlyOnScreen(host: HTMLElement, task: Task): void {
-  if (task.type === 'say-it') {
+  if (task.type === 'say-it' || task.type === 'say-contrast') {
     host.querySelector<HTMLButtonElement>('.say-it .big-btn')?.click()
     return
   }

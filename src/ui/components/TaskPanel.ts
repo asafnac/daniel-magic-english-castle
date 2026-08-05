@@ -176,6 +176,14 @@ export class TaskPanel {
   }
 
   private renderBody(task: Task): void {
+    // הסבר על מקום הפה מוצג מראש ולא כרמז אחרי טעות. "תגידי th"
+    // לא עוזר לאף אחד, ואילו "הלשון בין השיניים" הוא הוראה שאפשר
+    // לבצע, ואין שום סיבה להסתיר אותה עד שנכשלים.
+    if (task.mouthHint) {
+      this.body.appendChild(
+        el('p', { class: 'mouth-hint' }, [el('span', { class: 'mouth-hint-icon', text: '👄' }), el('span', { text: task.mouthHint })]),
+      )
+    }
     // במשימת קריאה המילה הכתובה היא הגיבורה, ולכן היא באה לפני הכל
     if (task.showWord) this.body.appendChild(this.buildWrittenWord(task))
     if (task.stimulus) this.body.appendChild(this.buildStimulus(task))
@@ -216,6 +224,12 @@ export class TaskPanel {
         break
       case 'sentence-build':
         this.body.appendChild(this.buildSentence(task))
+        break
+      case 'hear-contrast':
+        this.body.appendChild(this.buildContrast(task))
+        break
+      case 'say-contrast':
+        this.body.appendChild(this.buildSayIt(task))
         break
       case 'match-word-object':
         this.body.appendChild(this.buildMatch(task))
@@ -434,6 +448,50 @@ export class TaskPanel {
       slotsRow.classList.remove('wrong')
       if (!result.outOfDiamonds) reset()
     }, 780)
+  }
+
+  // ------------------------------------------------------------ הגייה
+
+  /**
+   * שתי מילים שנבדלות בצליל אחד, זו לצד זו.
+   *
+   * לכל אפשרות יש רמקול משלה, ובכוונה: הדרך ללמוד להבחין בין שני
+   * צלילים היא לשמוע אותם זה מול זה שוב ושוב. לחיצה על הרמקול
+   * משמיעה, לחיצה על הכרטיס עונה, ושתי הפעולות לא מתנגשות.
+   */
+  private buildContrast(task: Task): HTMLElement {
+    const grid = el('div', { class: 'options contrast-grid', role: 'group', ariaLabel: 'שתי אפשרויות' })
+    const showEnglish = getProgress().settings.showEnglishText
+
+    for (const opt of task.options) {
+      const card = el('div', { class: 'contrast-card' })
+
+      const pick = el('button', {
+        class: 'option',
+        type: 'button',
+        dataset: { id: opt.id },
+        ariaLabel: `לבחור ${opt.label ?? ''}`,
+      })
+      pick.appendChild(el('span', { class: 'option-emoji', text: opt.emoji ?? '' }))
+      if (opt.label) pick.appendChild(el('span', { class: 'option-label', text: opt.label }))
+      if (showEnglish && opt.english) pick.appendChild(el('span', { class: 'option-english', text: opt.english }))
+      pick.addEventListener('click', () => this.answer(opt.id, pick))
+
+      const listen = el('button', {
+        class: 'speaker-btn small',
+        type: 'button',
+        text: '🔊',
+        ariaLabel: `לשמוע את ${opt.label ?? ''}`,
+      })
+      listen.addEventListener('click', () => playWord(opt.speak ?? opt.english ?? '', listen))
+
+      card.appendChild(pick)
+      card.appendChild(listen)
+      grid.appendChild(card)
+    }
+
+    this.enableArrowNav(grid)
+    return grid
   }
 
   // ------------------------------------------------------------ משפטים

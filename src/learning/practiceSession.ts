@@ -24,6 +24,7 @@ import { getProgress, updateProgress, type SaveData } from './progress'
 import { createPracticeTask, createTask, trackedItems, type Task } from './questions'
 import { applyAnswer } from './mastery'
 import { FRAMES, nounOf, randomPicks } from './sentences'
+import { CONTRASTS } from './contrasts'
 import type { AnswerResult, TaskSession } from './session'
 import { allWords, findAnyWord } from './wordbank'
 
@@ -47,6 +48,11 @@ export function readingUnlocked(save: SaveData = getProgress()): boolean {
 /** האם כבר נפתחו אזורי המשפטים. */
 export function sentencesUnlocked(save: SaveData = getProgress()): boolean {
   return AREAS.some((a) => a.teachesSentences && save.areas[a.id]?.done)
+}
+
+/** האם כבר נפתח אזור ההגייה. */
+export function soundsUnlocked(save: SaveData = getProgress()): boolean {
+  return AREAS.some((a) => a.teachesSounds && save.areas[a.id]?.done)
 }
 
 /**
@@ -135,6 +141,15 @@ export function taskFor(candidate: Candidate, save: SaveData = getProgress()): T
       const picks = randomPicks(frame)
       const type = Math.random() < 0.5 ? 'sentence-pick' : 'sentence-build'
       const task = createTask(areaId, { type, frame: frame.id, picks, word: nounOf(frame.id, picks) })
+      task.isPractice = true
+      return task
+    }
+
+    // מילה ששייכת לזוג מינימלי חוזרת דרך ההבחנה בין שני הצלילים,
+    // כי זה מה שקשה בה. תרגול שלה כמילה רגילה מחמיץ בדיוק את הנקודה.
+    const contrast = CONTRASTS.find((c) => c.pair.includes(candidate.id))
+    if (contrast && soundsUnlocked(save)) {
+      const task = createTask(areaId, { type: 'hear-contrast', word: candidate.id, contrast: contrast.id })
       task.isPractice = true
       return task
     }

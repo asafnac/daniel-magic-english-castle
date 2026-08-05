@@ -976,3 +976,45 @@
   box-shadow: none;
   cursor: default;
 }
+
+/* ---------- משימות הגייה ---------- */
+
+/* ההסבר איפה הפה. מוצג מראש ולא כרמז אחרי טעות: זו הוראה שאפשר
+   לבצע, ואין סיבה להסתיר אותה עד שנכשלים. */
+.mouth-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--purple-deep);
+  background: #f3ecfb;
+  border-radius: 14px;
+  padding: 10px 14px;
+  max-width: 560px;
+  text-align: start;
+}
+
+.mouth-hint-icon {
+  font-size: 22px;
+  flex: none;
+}
+
+.contrast-grid {
+  gap: 18px;
+}
+
+/* כרטיס עם שתי פעולות נפרדות: לשמוע ולבחור. הרמקול מתחת ולא בתוך
+   הכפתור, כדי שלחיצה עליו לא תיחשב בטעות כתשובה. */
+.contrast-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.contrast-card .option {
+  min-width: 150px;
+  min-height: 150px;
+}

@@ -12,6 +12,7 @@
 import { WORDS, getWord, speakTextFor, type Word } from './vocabulary'
 import { PHONEMES, blendScript, getDecodable, getPhoneme, type DecodableWord, type Phoneme } from './phonics'
 import { buildSentence, defaultPicks, getFrame, neighbours, type BuiltSentence, type FrameSlot, type Scene } from './sentences'
+import { getContrast, partnerOf } from './contrasts'
 import { findArea, type AreaTaskSpec } from './areas'
 
 export type TaskType =
@@ -40,6 +41,11 @@ export type TaskType =
   | 'sentence-pick'
   /** בונים משפט מכרטיסי מילים. הפקה של מבנה, לא של מילה. */
   | 'sentence-build'
+  // ---------- משימות ההגייה ----------
+  /** שומעים אחת משתי מילים שנבדלות בצליל אחד, ובוחרים איזו נאמרה. */
+  | 'hear-contrast'
+  /** אומרים בקול מילה מזוג מינימלי, עם הסבר איפה הפה. */
+  | 'say-contrast'
 
 /** סוגי המשימות שמלמדים לקרוא ולא רק לזהות בשמיעה. */
 export const PHONICS_TYPES: readonly TaskType[] = ['sound-to-letter', 'sound-out', 'blend-build', 'read-word']
@@ -128,6 +134,10 @@ export interface Task {
   feedbackEmoji?: string
   /** הצליל שהמשימה בודקת, אם היא בודקת צליל בודד. */
   phonemeId?: string
+  /** זוג מינימלי שהמשימה עוסקת בו. */
+  contrastId?: string
+  /** הסבר קצר איפה הפה. מוצג במשימות ההגייה. */
+  mouthHint?: string
 
   // ---------------------------------------------------------- משפטים
   /** המשפט שהמשימה עוסקת בו, כולל התרגום והסצנה שהוא מייצר. */
@@ -698,6 +708,74 @@ export function trackedItems(task: Task): { kind: 'word' | 'sound' | 'frame'; id
   return out
 }
 
+// ------------------------------------------------------- מחוללי ההגייה
+
+/**
+ * שומעים אחת משתי מילים שנבדלות בצליל אחד בלבד, ובוחרים איזו נאמרה.
+ *
+ * זו משימת הגייה שלא צריכה מיקרופון, וזה לא פשרה אלא הסדר הנכון:
+ * אי אפשר להפיק הבדל שלא שומעים. ילדה שלא מבחינה בין ship לבין
+ * sheep לא תתקן את ההגייה שלה גם מול המיקרופון הטוב בעולם, כי היא
+ * לא יודעת לאן לכוון.
+ *
+ * שתי האפשרויות מוצגות עם תמונה ועם תווית בעברית, ולכל אחת יש רמקול
+ * משלה. זה מכוון: המטרה היא להבחין בין הצלילים, לא להיזכר מה זו
+ * המילה, ולכן אין שום סיבה להקשות דווקא על החלק שאינו נבדק.
+ */
+function makeHearContrast(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const contrast = getContrast(spec.contrast ?? '')
+  const other = getWord(partnerOf(contrast.id, word.id))
+  const options: TaskOption[] = shuffle([
+    { id: word.id, correct: true, emoji: word.emoji, label: word.hebrew, english: word.english, speak: speakTextFor(word) },
+    { id: other.id, correct: false, emoji: other.emoji, label: other.hebrew, english: other.english, speak: speakTextFor(other) },
+  ])
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'hear-contrast',
+    areaId,
+    wordId: word.id,
+    contrastId: contrast.id,
+    mouthHint: contrast.listenHint,
+    promptHe: 'הקשיבי טוב. איזו מהשתיים אמרתי?',
+    speakOnStart: speakTextFor(word),
+    options,
+    hints: [
+      'בואי נשמע שוב. אפשר ללחוץ על כל תמונה כדי לשמוע גם אותה 👂',
+      `רמז: ${contrast.listenHint}`,
+      `רמז: המילה הזאת אומרת "${word.hebrew}"`,
+    ],
+  }
+}
+
+/**
+ * אומרים את המילה בקול.
+ *
+ * המיקרופון כאן אופציונלי ולעולם לא חוסם ולא מוריד יהלום, בדיוק כמו
+ * במשימת "שמעתי ואמרתי". מה שמתווסף הוא ההסבר איפה הפה, וזה החלק
+ * שבאמת מלמד: "תגידי th" לא עוזר לאף אחד, ואילו "הלשון בין השיניים"
+ * הוא הוראה שאפשר לבצע.
+ */
+function makeSayContrast(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const contrast = getContrast(spec.contrast ?? '')
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'say-contrast',
+    areaId,
+    wordId: word.id,
+    contrastId: contrast.id,
+    mouthHint: contrast.listenHint,
+    promptHe: 'הקשיבי, ואז אמרי אותה בקול',
+    speakOnStart: speakTextFor(word),
+    stimulus: { emoji: word.emoji, repeat: 1 },
+    options: [],
+    hints: [
+      'בואי נשמע שוב 👂',
+      `רמז: ${contrast.listenHint}`,
+      'אין כאן טעויות. פשוט תגידי אותה בקול 💛',
+    ],
+  }
+}
+
 // ---------------------------------------------------------------- API
 
 export function createTask(areaId: string, spec: AreaTaskSpec): Task {
@@ -733,6 +811,10 @@ export function createTask(areaId: string, spec: AreaTaskSpec): Task {
       return makeSentencePick(areaId, spec, word)
     case 'sentence-build':
       return makeSentenceBuild(areaId, spec, word)
+    case 'hear-contrast':
+      return makeHearContrast(areaId, spec, word)
+    case 'say-contrast':
+      return makeSayContrast(areaId, spec, word)
   }
 }
 

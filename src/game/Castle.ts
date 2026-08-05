@@ -59,6 +59,7 @@ const THEME_PROPS: Record<AreaLayout['theme'], string[]> = {
   runes: ['👑', '🛏️', '🚌', '🐔', '🥁', '🚩'],
   bridge: ['🌉', '🐶', '🐱', '🐟', '😊', '😢'],
   wordyard: ['🪄', '🎒', '🖊️', '📕', '🔵', '🔴'],
+  echo: ['👂', '🦉', '🚢', '🐑', '🦺', '🧭'],
 }
 
 export class Castle {

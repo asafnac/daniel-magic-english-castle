@@ -35,6 +35,8 @@ export interface AreaLayout extends Zone {
     | 'sounds' | 'spells' | 'runes'
     // שני אזורי המשפטים
     | 'bridge' | 'wordyard'
+    // אזור ההגייה
+    | 'echo'
   guide: { x: number; z: number }
   /** הגשר והשער שמובילים לאזור הבא. חסר באזור האחרון. */
   gate?: { zStart: number; zEnd: number; z: number }
@@ -55,6 +57,7 @@ const THEMES: AreaLayout['theme'][] = [
   'runes',
   'bridge',
   'wordyard',
+  'echo',
 ]
 
 // פלטה משלה לכל אזור, ולא חזרה מודולרית על חמש, כדי ששני אזורים
@@ -74,6 +77,7 @@ const PALETTES: { ground: number; wall: number; accent: number }[] = [
   { ground: 0xa6ddd0, wall: 0xd0f0e7, accent: 0x5ec8b0 }, // חדר הכתר
   { ground: 0xf0c4b0, wall: 0xfadfd2, accent: 0xe0714f }, // גשר המשפטים
   { ground: 0xc3c9f0, wall: 0xdfe3fa, accent: 0x7f8ce0 }, // חצר המילים
+  { ground: 0xb4cbe8, wall: 0xd6e3f5, accent: 0x5b8fd6 }, // חדר ההד
 ]
 
 export const COURTYARD: Zone = {
