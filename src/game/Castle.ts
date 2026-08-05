@@ -57,6 +57,8 @@ const THEME_PROPS: Record<AreaLayout['theme'], string[]> = {
   sounds: ['🔮', '📌', '🍳', '🐜', '🚰', '🌀'],
   spells: ['📜', '🗺️', '🍲', '🐷', '🧢', '⛏️'],
   runes: ['👑', '🛏️', '🚌', '🐔', '🥁', '🚩'],
+  bridge: ['🌉', '🐶', '🐱', '🐟', '😊', '😢'],
+  wordyard: ['🪄', '🎒', '🖊️', '📕', '🔵', '🔴'],
 }
 
 export class Castle {

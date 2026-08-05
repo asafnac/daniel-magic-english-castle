@@ -11,6 +11,7 @@
 
 import { WORDS, getWord, speakTextFor, type Word } from './vocabulary'
 import { PHONEMES, blendScript, getDecodable, getPhoneme, type DecodableWord, type Phoneme } from './phonics'
+import { buildSentence, defaultPicks, getFrame, neighbours, type BuiltSentence, type FrameSlot, type Scene } from './sentences'
 import { findArea, type AreaTaskSpec } from './areas'
 
 export type TaskType =
@@ -34,6 +35,11 @@ export type TaskType =
   | 'blend-build'
   /** רואים מילה כתובה בלי לשמוע אותה, מפענחים ובוחרים את התמונה. */
   | 'read-word'
+  // ---------- משימות המשפט ----------
+  /** שומעים משפט ובוחרים את הסצנה, מתוך סצנות שנבדלות במילה אחת. */
+  | 'sentence-pick'
+  /** בונים משפט מכרטיסי מילים. הפקה של מבנה, לא של מילה. */
+  | 'sentence-build'
 
 /** סוגי המשימות שמלמדים לקרוא ולא רק לזהות בשמיעה. */
 export const PHONICS_TYPES: readonly TaskType[] = ['sound-to-letter', 'sound-out', 'blend-build', 'read-word']
@@ -68,6 +74,8 @@ export interface TaskOption {
   badge?: string
   /** קנה מידה לאימוג'י. משמש למשימות גדול וקטן. */
   scale?: number
+  /** סצנה שלמה: אימוג'י, צבע רקע וגודל. משמש למשימות משפט. */
+  scene?: Scene
 }
 
 export interface MatchPair {
@@ -118,6 +126,21 @@ export interface Task {
   }
   /** דורס את האימוג'י במסך המשוב. משמש למשימות שבהן הגיבור הוא אות. */
   feedbackEmoji?: string
+
+  // ---------------------------------------------------------- משפטים
+  /** המשפט שהמשימה עוסקת בו, כולל התרגום והסצנה שהוא מייצר. */
+  sentence?: BuiltSentence
+  /** משימת בניית משפט: מבנה המשבצות וכרטיסי המילים שאפשר לבחור מהם. */
+  sentenceBuild?: {
+    /** המשפט המלא באנגלית, כפי שצריך לצאת. */
+    text: string
+    /** משבצות המסגרת. משבצת עם fixed כבר מלאה ואי אפשר לגעת בה. */
+    slots: FrameSlot[]
+    /** המילה הנכונה בכל משבצת, לפי הסדר. */
+    picks: string[]
+    /** כרטיסי המילים במגש, מעורבבים, כולל כרטיסים מיותרים. */
+    tray: string[]
+  }
 }
 
 // ---------------------------------------------------------------- כלי עזר
@@ -556,6 +579,93 @@ function makeReadWord(areaId: string, spec: AreaTaskSpec, word: Word): Task {
   }
 }
 
+// ------------------------------------------------------- מחוללי המשפט
+
+/** המשפט שההגדרה מבקשת, או ברירת המחדל של המסגרת. */
+function sentenceFromSpec(spec: AreaTaskSpec): BuiltSentence {
+  const frame = getFrame(spec.frame ?? '')
+  return buildSentence(frame.id, spec.picks ?? defaultPicks(frame))
+}
+
+/**
+ * שומעים משפט ובוחרים את הסצנה.
+ *
+ * ההסחות הן תמיד שכנים: משפטים שנבדלים מהמקור במילה אחת בדיוק.
+ * זה מה שמכריח להקשיב עד הסוף. אם ההסחה נבדלת בשתי מילים, אפשר
+ * לזהות את התשובה מהמילה הראשונה ולהפסיק להקשיב, וזו בדיוק
+ * ההרגל שאנחנו מנסים לא ללמד.
+ */
+function makeSentencePick(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const target = sentenceFromSpec(spec)
+  const others = pickRandom(neighbours(target.frameId, target.picks), 2)
+  const options: TaskOption[] = shuffle([
+    { id: target.english, correct: true, scene: target.scene, label: target.hebrew, english: target.english },
+    ...others.map((s) => ({ id: s.english, correct: false, scene: s.scene, label: s.hebrew, english: s.english })),
+  ])
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'sentence-pick',
+    areaId,
+    wordId: word.id,
+    promptHe: 'הקשיבי למשפט השלם ובחרי את התמונה שמתאימה לו בדיוק',
+    speakOnStart: target.english,
+    sentence: target,
+    options,
+    hints: [
+      'בואי נקשיב שוב. שימי לב לכל מילה, גם לקטנות 👂',
+      `רמז: המשפט אומר "${target.hebrew}"`,
+      'השארתי לך רק שתי אפשרויות 💛',
+    ],
+  }
+}
+
+/**
+ * בניית משפט מכרטיסי מילים.
+ *
+ * המשבצות הקבועות כבר מלאות ואי אפשר לגעת בהן, וזה בכוונה: המטרה
+ * כאן היא סדר המילים, לא לזכור ש-the קיימת. המגש מכיל גם כרטיסים
+ * מיותרים, אחרת אפשר היה לסדר נכון בלי לדעת כלום פשוט כי אין
+ * ממה לטעות.
+ */
+function makeSentenceBuild(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const target = sentenceFromSpec(spec)
+  const frame = getFrame(target.frameId)
+  const needed = frame.slots.map((s, i) => (s.fixed ? null : target.picks[i])).filter((x): x is string => x !== null)
+  const extras = spec.extraCards ?? defaultExtraCards(frame, needed, 2)
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'sentence-build',
+    areaId,
+    wordId: word.id,
+    promptHe: 'הקשיבי למשפט ובני אותו מהמילים, לפי הסדר',
+    speakOnStart: target.english,
+    sentence: target,
+    options: [],
+    sentenceBuild: {
+      text: target.english,
+      slots: frame.slots,
+      picks: target.picks,
+      tray: shuffle([...needed, ...extras]),
+    },
+    hints: [
+      'בואי נשמע את המשפט שוב, מילה מילה 👂',
+      `רמז: המשפט אומר "${target.hebrew}"`,
+      'שמתי לך את המילה הראשונה במקום 💛',
+    ],
+  }
+}
+
+/**
+ * כרטיסים מיותרים למגש: מילים מאותן משבצות, שפשוט לא נבחרו הפעם.
+ * הסחה מתוך המסגרת עצמה קשה יותר ממילה אקראית, וגם הוגנת יותר.
+ */
+function defaultExtraCards(frame: { slots: FrameSlot[] }, needed: readonly string[], count: number): string[] {
+  const pool = frame.slots
+    .flatMap((s) => (s.fixed ? [] : (s.choices ?? [])))
+    .filter((id) => !needed.includes(id))
+  return pickRandom(Array.from(new Set(pool)), count)
+}
+
 // ---------------------------------------------------------------- API
 
 export function createTask(areaId: string, spec: AreaTaskSpec): Task {
@@ -587,6 +697,10 @@ export function createTask(areaId: string, spec: AreaTaskSpec): Task {
       return makeBlendBuild(areaId, spec, word)
     case 'read-word':
       return makeReadWord(areaId, spec, word)
+    case 'sentence-pick':
+      return makeSentencePick(areaId, spec, word)
+    case 'sentence-build':
+      return makeSentenceBuild(areaId, spec, word)
   }
 }
 

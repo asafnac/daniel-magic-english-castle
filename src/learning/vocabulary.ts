@@ -22,6 +22,8 @@ export type Category =
   | 'phrases'
   /** מילים קצרות שנועדו לפענוח בקריאה, לא לשינון בשמיעה. */
   | 'sounds'
+  /** מילות חיבור שאין להן תמונה, ומשמעותן נובעת ממקומן במשפט. */
+  | 'grammar'
 
 export interface Word {
   /** מזהה ייחודי. משמש בשמירה ב-localStorage, אז עדיף לא לשנות אחרי שמשחקים. */
@@ -227,6 +229,20 @@ export const WORDS: Word[] = [
   { id: 'flag', english: 'flag', hebrew: 'דגל', category: 'sounds', difficulty: 2, emoji: '🚩', sounds: ['f', 'l', 'a', 'g'] },
   { id: 'drum', english: 'drum', hebrew: 'תוף', category: 'sounds', difficulty: 2, emoji: '🥁', sounds: ['d', 'r', 'u', 'm'] },
   { id: 'hand', english: 'hand', hebrew: 'יד', category: 'sounds', difficulty: 2, emoji: '✋', sounds: ['h', 'a', 'n', 'd'] },
+
+  // ---------- מילות חיבור ----------
+  // אין להן תמונה, ולכן הן היחידות במשחק שמוצגות ככיתוב בלבד.
+  // זה אפשרי רק אחרי מגדל הצלילים: עד שם דניאל לא קראה כלום.
+  //
+  // שלוש מהן הן בדיוק מה שדובר עברית נוטה להשמיט, כי בעברית הן
+  // פשוט לא קיימות: "a" (אין תווית יידוע לא מיודעת), "is" (בהווה
+  // עברית מוותרת על אוגד), ו-the לפני שם עצם מיודע.
+  { id: 'the', english: 'the', hebrew: 'ה־', category: 'grammar', difficulty: 1, emoji: '🔹' },
+  { id: 'a', english: 'a', hebrew: 'אחד, סתמי', category: 'grammar', difficulty: 1, emoji: '🔹' },
+  { id: 'is', english: 'is', hebrew: 'הוא, בהווה', category: 'grammar', difficulty: 2, emoji: '🔸' },
+  { id: 'i_pronoun', english: 'I', hebrew: 'אני', category: 'grammar', difficulty: 1, emoji: '🙋' },
+  { id: 'have', english: 'have', hebrew: 'יש לי', category: 'grammar', difficulty: 2, emoji: '🤲' },
+  { id: 'see', english: 'see', hebrew: 'רואה', category: 'grammar', difficulty: 2, emoji: '👀' },
 
   // ---------- משפטים ----------
   // משפט הוא פריט רגיל לכל דבר, ולכן כל מנגנוני המשחק עובדים עליו

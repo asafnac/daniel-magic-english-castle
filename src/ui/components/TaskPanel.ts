@@ -187,10 +187,11 @@ export class TaskPanel {
     if (task.speakOnStart || (task.soundScript && task.soundScript.length > 0)) {
       const replays = el('div', { class: 'task-replays' })
       if (task.speakOnStart) {
+        const what = task.sentence ? 'המשפט' : 'המילה'
         replays.appendChild(
           el('div', { class: 'task-replay' }, [
-            speakerButton(task.speakOnStart, { label: 'להשמיע שוב את המילה' }),
-            el('span', { class: 'task-replay-label', text: 'לשמוע את המילה' }),
+            speakerButton(task.speakOnStart, { label: `להשמיע שוב את ${what}` }),
+            el('span', { class: 'task-replay-label', text: `לשמוע את ${what}` }),
           ]),
         )
       }
@@ -210,6 +211,12 @@ export class TaskPanel {
       case 'sound-out':
       case 'read-word':
         this.body.appendChild(this.buildOptions(task, 'image-grid'))
+        break
+      case 'sentence-pick':
+        this.body.appendChild(this.buildOptions(task, 'scene-grid'))
+        break
+      case 'sentence-build':
+        this.body.appendChild(this.buildSentence(task))
         break
       case 'match-word-object':
         this.body.appendChild(this.buildMatch(task))
@@ -430,6 +437,138 @@ export class TaskPanel {
     }, 780)
   }
 
+  // ------------------------------------------------------------ משפטים
+
+  /**
+   * בניית משפט מכרטיסי מילים.
+   *
+   * המשבצות הקבועות כבר מלאות ונעולות: המטרה כאן היא סדר המילים,
+   * ולא לזכור ש-the קיימת. כרטיס נכנס למשבצת הפנויה הבאה שאפשר
+   * לבחור בה, ולחיצה על משבצת מחזירה את הכרטיס שבה למגש.
+   */
+  private buildSentence(task: Task): HTMLElement {
+    const session = this.session
+    const build = task.sentenceBuild
+    const box = el('div', { class: 'sentence-box' })
+    if (!session || !build) return box
+
+    const slotsRow = el('div', { class: 'sentence-slots', role: 'group', ariaLabel: 'המשפט שנבנה' })
+    const trayRow = el('div', { class: 'sentence-tray', role: 'group', ariaLabel: 'כרטיסי המילים' })
+
+    const placed: (string | null)[] = build.slots.map((s) => s.fixed ?? null)
+    const usedTrayIndex: (number | null)[] = build.slots.map(() => null)
+    const revealed = session.currentRevealedWords()
+
+    const slotButtons: HTMLButtonElement[] = []
+    const trayButtons: HTMLButtonElement[] = []
+
+    const choosableIndexes = build.slots.map((s, i) => (s.fixed ? -1 : i)).filter((i) => i >= 0)
+    const isFull = (): boolean => placed.every((p) => p !== null)
+    const builtText = (): string => placed.map((id) => (id ? getWord(id).english : '')).join(' ')
+
+    const refresh = (): void => {
+      placed.forEach((id, i) => {
+        const slot = slotButtons[i]
+        const fixed = !!build.slots[i].fixed
+        const lockedByHint = choosableIndexes.indexOf(i) >= 0 && choosableIndexes.indexOf(i) < revealed
+        slot.textContent = id ? getWord(id).english : ''
+        slot.classList.toggle('filled', id !== null)
+        slot.classList.toggle('fixed', fixed)
+        slot.classList.toggle('locked', lockedByHint)
+        slot.disabled = fixed || lockedByHint || id === null
+        slot.setAttribute('aria-label', id ? `המילה ${getWord(id).english}` : `משבצת ריקה`)
+      })
+      trayButtons.forEach((btn, i) => {
+        const used = usedTrayIndex.includes(i)
+        btn.classList.toggle('used', used)
+        btn.disabled = used || this.busy
+      })
+    }
+
+    const place = (trayIndex: number): void => {
+      if (this.busy) return
+      const slot = choosableIndexes.find((i, k) => placed[i] === null && k >= revealed)
+      if (slot === undefined) return
+      placed[slot] = build.tray[trayIndex]
+      usedTrayIndex[slot] = trayIndex
+      playWord(getWord(build.tray[trayIndex]).english)
+      refresh()
+      if (isFull()) this.checkSentence(builtText(), slotsRow, resetPlaced)
+    }
+
+    const takeBack = (slotIndex: number): void => {
+      if (this.busy) return
+      if (build.slots[slotIndex].fixed) return
+      if (choosableIndexes.indexOf(slotIndex) < revealed) return
+      placed[slotIndex] = null
+      usedTrayIndex[slotIndex] = null
+      refresh()
+    }
+
+    const resetPlaced = (): void => {
+      choosableIndexes.forEach((i, k) => {
+        if (k < revealed) return
+        placed[i] = null
+        usedTrayIndex[i] = null
+      })
+      refresh()
+    }
+
+    build.slots.forEach((_, i) => {
+      const slot = el('button', { class: 'sentence-slot', type: 'button' })
+      slot.addEventListener('click', () => takeBack(i))
+      slotButtons.push(slot)
+      slotsRow.appendChild(slot)
+    })
+
+    build.tray.forEach((wordId, i) => {
+      const w = getWord(wordId)
+      const card = el('button', {
+        class: 'word-card',
+        type: 'button',
+        text: w.english,
+        ariaLabel: `כרטיס המילה ${w.english}, ${w.hebrew}`,
+      })
+      card.addEventListener('click', () => place(i))
+      trayButtons.push(card)
+      trayRow.appendChild(card)
+    })
+
+    // רמז שמניח את המילה הראשונה שאפשר לבחור בה
+    for (let k = 0; k < revealed; k++) {
+      const slotIndex = choosableIndexes[k]
+      const wanted = build.picks[slotIndex]
+      const trayIndex = build.tray.findIndex((id, j) => id === wanted && !usedTrayIndex.includes(j))
+      placed[slotIndex] = wanted
+      if (trayIndex >= 0) usedTrayIndex[slotIndex] = trayIndex
+    }
+
+    box.appendChild(slotsRow)
+    box.appendChild(trayRow)
+    refresh()
+    this.enableArrowNav(trayRow)
+    return box
+  }
+
+  private checkSentence(text: string, slotsRow: HTMLElement, reset: () => void): void {
+    const session = this.session
+    if (!session || this.busy) return
+    const key = session.task.key
+    const result = session.answerBuilt(text)
+    if (result.correct) {
+      slotsRow.classList.add('correct')
+      this.onCorrectResult()
+      return
+    }
+    slotsRow.classList.add('wrong')
+    this.onWrongResult(result)
+    window.setTimeout(() => {
+      if (this.session?.task.key !== key) return
+      slotsRow.classList.remove('wrong')
+      if (!result.outOfDiamonds) reset()
+    }, 780)
+  }
+
   // ------------------------------------------------------------ אפשרויות
 
   private buildOptions(task: Task, gridClass: string): HTMLElement {
@@ -444,7 +583,17 @@ export class TaskPanel {
         ariaLabel: optionAria(task, opt, i),
       })
 
-      if (opt.color) {
+      if (opt.scene) {
+        // סצנה שלמה: הצבע הוא רקע, הגודל הוא גודל, והרגש על הפנים.
+        // שלושתם חייבים להיראות בו זמנית, אחרת אחת המילים במשפט
+        // לא משנה כלום ואין סיבה להקשיב לה.
+        const stage = el('span', { class: 'scene-stage' })
+        if (opt.scene.color) stage.style.background = opt.scene.color
+        const glyph = el('span', { class: 'scene-emoji', text: opt.scene.emoji })
+        glyph.style.fontSize = `${opt.scene.scale * 3}em`
+        stage.appendChild(glyph)
+        btn.appendChild(stage)
+      } else if (opt.color) {
         btn.appendChild(el('span', { class: `swatch shape-${opt.shape ?? 'circle'}`, style: { background: opt.color } }))
       } else if (opt.speak) {
         const badge = el('span', { class: 'option-badge', text: opt.badge ?? String(i + 1) })
@@ -686,15 +835,19 @@ export class TaskPanel {
     const word = getWord(task.wordId)
     const overlay = el('div', { class: 'feedback', role: 'dialog', ariaLabel: 'כל הכבוד' })
 
-    const emoji = task.feedbackEmoji ?? (task.type === 'letter-sound' ? (word.letterEmoji ?? word.emoji) : word.emoji)
+    // במשימת משפט הגיבור הוא המשפט השלם ולא אחת המילים שבו
+    const english = task.sentence?.english ?? word.english
+    const hebrew = task.sentence?.hebrew ?? word.hebrew
+    const emoji = task.feedbackEmoji ?? task.sentence?.scene.emoji ?? (task.type === 'letter-sound' ? (word.letterEmoji ?? word.emoji) : word.emoji)
+
     overlay.appendChild(el('div', { class: 'feedback-emoji', text: emoji }))
     overlay.appendChild(el('div', { class: 'feedback-cheer', text: pickCheer() }))
 
     const wordRow = el('div', { class: 'feedback-word' })
-    wordRow.appendChild(speakerButton(word.sentence ?? word.english, { label: `להשמיע שוב את ${word.english}` }))
-    wordRow.appendChild(el('span', { class: 'feedback-en', text: word.english }))
+    wordRow.appendChild(speakerButton(task.sentence?.english ?? word.sentence ?? word.english, { label: `להשמיע שוב את ${english}` }))
+    wordRow.appendChild(el('span', { class: 'feedback-en', text: english }))
     overlay.appendChild(wordRow)
-    overlay.appendChild(el('div', { class: 'feedback-he', text: word.hebrew }))
+    overlay.appendChild(el('div', { class: 'feedback-he', text: hebrew }))
 
     const next = bigButton('להמשיך', () => this.advance(), { emoji: '➜', variant: 'gold' })
     overlay.appendChild(next)
@@ -704,7 +857,7 @@ export class TaskPanel {
 
     // משמיעים שוב את המילה, ואם זו אות גם את המשפט המלא
     window.setTimeout(() => {
-      playWord(word.sentence ?? word.english)
+      playWord(task.sentence?.english ?? word.sentence ?? word.english)
       window.setTimeout(() => sfxStar(), 500)
     }, 260)
 
@@ -799,6 +952,7 @@ function pickCheer(): string {
 }
 
 function optionAria(task: Task, opt: TaskOption, i: number): string {
+  if (opt.scene) return opt.label ?? `אפשרות ${i + 1}`
   if (opt.color) return `הצבע ${opt.label ?? ''}`
   if (opt.scale) return `${opt.label ?? ''}`
   if (task.type === 'phrase-match') return opt.label ?? `אפשרות ${i + 1}`

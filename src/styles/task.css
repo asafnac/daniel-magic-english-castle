@@ -848,3 +848,131 @@
     display: none;
   }
 }
+
+/* ---------- משימות המשפט ---------- */
+
+/* סצנה: הצבע הוא הרקע, הגודל הוא הגודל. שתי המילים באמצע המשפט
+   חייבות להיראות, אחרת אין סיבה להקשיב להן. */
+.scene-stage {
+  /* בסיס למידת האימוג'י ב-em, כדי שקנה המידה יישמר בכל גודל מסך */
+  font-size: 1.1rem;
+  display: grid;
+  place-items: center;
+  width: 132px;
+  height: 132px;
+  border-radius: 22px;
+  background: #f2ecfa;
+  transition: background 0.2s ease;
+}
+
+.scene-emoji {
+  line-height: 1;
+  transition: font-size 0.2s ease;
+}
+
+.scene-grid .option {
+  min-width: 156px;
+}
+
+/* ---------- בניית משפט ---------- */
+
+.sentence-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.sentence-slots {
+  display: flex;
+  direction: ltr;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 6px;
+  border-radius: 20px;
+}
+
+.sentence-slots.correct {
+  background: #dff5e3;
+}
+
+.sentence-slots.wrong {
+  animation: blend-shake 0.42s ease;
+}
+
+.sentence-slot {
+  font-size: clamp(20px, 3.4vw, 28px);
+  font-weight: 800;
+  color: var(--purple-deep);
+  background: #f6f1fc;
+  border: 4px dashed #cdb8e8;
+  border-radius: 14px;
+  min-width: 96px;
+  min-height: 64px;
+  padding: 0 10px;
+  cursor: default;
+}
+
+.sentence-slot.filled {
+  background: #fff;
+  border-style: solid;
+  border-color: var(--purple);
+  cursor: pointer;
+}
+
+/* מילה קבועה שהמשחק נתן. היא לא חלק מהאתגר, ולכן היא נראית
+   שקטה יותר ואי אפשר להזיז אותה. */
+.sentence-slot.fixed {
+  background: #efeaf6;
+  border-style: solid;
+  border-color: #d6cbe6;
+  color: var(--ink-soft);
+  cursor: default;
+}
+
+.sentence-slot.locked {
+  background: #fff8e0;
+  border-color: var(--gold);
+  border-style: solid;
+  cursor: default;
+}
+
+.sentence-tray {
+  display: flex;
+  direction: ltr;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.word-card {
+  font-size: clamp(19px, 3.2vw, 26px);
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(160deg, #f0a184 0%, #d9603c 100%);
+  border: none;
+  border-radius: 14px;
+  min-height: 60px;
+  padding: 0 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #a8452a;
+  transition: transform 0.14s ease, opacity 0.2s ease;
+}
+
+.word-card:hover:not(:disabled),
+.word-card:focus-visible {
+  transform: translateY(-3px);
+}
+
+.word-card:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #a8452a;
+}
+
+.word-card.used {
+  opacity: 0.28;
+  box-shadow: none;
+  cursor: default;
+}

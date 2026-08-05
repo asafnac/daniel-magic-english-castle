@@ -98,7 +98,7 @@ export class AreaSession {
    * חלק מהמילה עדיין אינה המילה.
    */
   answerBuilt(text: string): AnswerResult {
-    const target = this.task.build?.text
+    const target = this.task.build?.text ?? this.task.sentenceBuild?.text
     if (target === undefined) return this.onWrong()
     return text.toLowerCase() === target.toLowerCase() ? this.onCorrect() : this.onWrong()
   }
@@ -113,6 +113,19 @@ export class AreaSession {
     if (this.lives.hint >= 3) return Math.max(0, total - 1)
     if (this.lives.hint >= 2) return 1
     return 0
+  }
+
+  /**
+   * כמה מילים לחשוף מראש במשימת בניית משפט.
+   * זהיר יותר מאשר באריחי צליל: משפט קצר הוא לפעמים שתי בחירות בלבד,
+   * וחשיפה של שתיהן הייתה פותרת אותו לגמרי.
+   */
+  currentRevealedWords(): number {
+    const build = this.task.sentenceBuild
+    if (!build) return 0
+    const choosable = build.slots.filter((s) => !s.fixed).length
+    if (choosable === 0) return 0
+    return this.lives.hint >= 3 ? Math.min(1, choosable - 1) : 0
   }
 
   private onCorrect(): AnswerResult {

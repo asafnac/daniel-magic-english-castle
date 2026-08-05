@@ -9,6 +9,7 @@ import { AREAS } from '../learning/areas'
 import { eraseEverything, getProgress } from '../learning/progress'
 import { PHONICS_TYPES, createTask, type Task } from '../learning/questions'
 import { PHONEMES, decodableWords, getPhoneme, phonemesUpTo, spellingMatchesSounds, wordsUpTo } from '../learning/phonics'
+import { FRAMES, buildSentence, combinationCount, defaultPicks, neighbours } from '../learning/sentences'
 import { AreaSession } from '../learning/session'
 import { WORDS, getWord } from '../learning/vocabulary'
 import { TaskPanel } from '../ui/components/TaskPanel'
@@ -148,6 +149,111 @@ function run(): void {
     }
   }
 
+  // ---------------------------------------------------------- מנוע המשפטים
+  check('frame ids unique', new Set(FRAMES.map((f) => f.id)).size === FRAMES.length)
+  check('every frame has at least one slot to choose in', FRAMES.every((f) => f.slots.some((s) => !s.fixed)))
+  check('every frame word exists', FRAMES.every((f) => f.slots.every((s) => (s.fixed ? ids.has(s.fixed) : (s.choices ?? []).every((c) => ids.has(c))))))
+  check('every slot is either fixed or offers choices', FRAMES.every((f) => f.slots.every((s) => !!s.fixed !== !!s.choices)))
+
+  for (const frame of FRAMES) {
+    const combos = combinationCount(frame)
+    // הטענה שמצדיקה את כל המנגנון: מסגרת אחת מייצרת הרבה משפטים.
+    // אם צירוף אחד או שניים, זו רשימת משפטים ולא טבלת החלפה.
+    check(`${frame.id}: makes many different sentences`, combos >= 6, String(combos))
+
+    const base = buildSentence(frame.id, defaultPicks(frame))
+    check(`${frame.id}: builds an english sentence`, base.english.split(' ').length === frame.slots.length, base.english)
+    check(`${frame.id}: builds a hebrew translation`, base.hebrew.length > 0 && !base.hebrew.includes('undefined'), base.hebrew)
+
+    const near = neighbours(frame.id, base.picks)
+    check(`${frame.id}: has neighbours that differ by exactly one word`, near.length > 0, String(near.length))
+    check(
+      `${frame.id}: every neighbour really differs in exactly one slot`,
+      near.every((n) => n.picks.filter((p, i) => p !== base.picks[i]).length === 1),
+    )
+    check(`${frame.id}: no neighbour is the sentence itself`, near.every((n) => n.english !== base.english))
+
+    // כל צירוף חייב לייצר תמונה, אחרת יש מילה במשפט שלא משנה כלום
+    const everyCombo = [base, ...near]
+    check(`${frame.id}: every combination produces a scene`, everyCombo.every((s) => s.scene.emoji.length > 0))
+    check(
+      `${frame.id}: changing a word changes what you see or hear`,
+      near.every((n) => n.english !== base.english && (n.scene.emoji !== base.scene.emoji || n.scene.color !== base.scene.color || n.scene.scale !== base.scene.scale || n.hebrew !== base.hebrew)),
+    )
+  }
+
+  // מסגרות המשפט קיימות כדי לתקוף מבנים שבעברית פשוט אין, ולכן דובר
+  // עברית משמיט אותם. אם המילים האלה ייעלמו מהמסגרות, נשארנו עם
+  // תרגול אוצר מילים בתחפושת.
+  const allFixed = new Set(FRAMES.flatMap((f) => f.slots.map((s) => s.fixed).filter((x): x is string => !!x)))
+  check('some frame teaches the copula "is", which hebrew drops', allFixed.has('is'))
+  check('some frame teaches the article "a", which hebrew has no equivalent for', allFixed.has('a'))
+  check('some frame teaches "the"', allFixed.has('the'))
+  check(
+    'some frame puts an adjective before the noun, the opposite of hebrew',
+    FRAMES.some((f) => {
+      const adj = f.slots.findIndex((s) => s.role === 'size' || s.role === 'colour')
+      const noun = f.slots.findIndex((s) => s.role === 'noun')
+      return adj >= 0 && noun >= 0 && adj < noun
+    }),
+  )
+  check(
+    'when two adjectives meet, size always comes before colour',
+    FRAMES.filter((f) => f.slots.some((s) => s.role === 'size') && f.slots.some((s) => s.role === 'colour')).every(
+      (f) => f.slots.findIndex((s) => s.role === 'size') < f.slots.findIndex((s) => s.role === 'colour'),
+    ),
+  )
+
+  // ---------------------------------------------------------- אזורי המשפט
+  const sentenceAreas = AREAS.filter((a) => a.teachesSentences)
+  check('the castle has areas that teach sentences', sentenceAreas.length >= 1, String(sentenceAreas.length))
+  check(
+    'sentence tasks only live in areas that teach sentences',
+    AREAS.every((a) => a.teachesSentences || a.tasks.every((t) => t.type !== 'sentence-pick' && t.type !== 'sentence-build')),
+  )
+
+  for (const area of sentenceAreas) {
+    for (const spec of area.tasks) {
+      if (spec.type !== 'sentence-pick' && spec.type !== 'sentence-build') continue
+      const frame = FRAMES.find((f) => f.id === spec.frame)
+      check(`${area.id}: task names a real frame`, !!frame, spec.frame ?? '(none)')
+      if (!frame) continue
+      check(`${area.id}/${spec.frame}: picks cover every slot`, (spec.picks ?? []).length === frame.slots.length, String((spec.picks ?? []).length))
+      check(
+        `${area.id}/${spec.frame}: every pick is legal for its slot`,
+        (spec.picks ?? []).every((p, i) => {
+          const slot = frame.slots[i]
+          return slot.fixed ? slot.fixed === p : (slot.choices ?? []).includes(p)
+        }),
+        (spec.picks ?? []).join(' '),
+      )
+
+      const task = createTask(area.id, spec)
+      check(`${area.id}/${spec.frame}: the task carries the built sentence`, !!task.sentence)
+      if (spec.type === 'sentence-pick') {
+        check(`${area.id}/${spec.frame}: every option is a whole scene`, task.options.every((o) => !!o.scene))
+        check(
+          `${area.id}/${spec.frame}: the wrong options differ by one word only`,
+          task.options.filter((o) => !o.correct).every((o) => {
+            const other = o.english?.split(' ') ?? []
+            const mine = task.sentence?.english.split(' ') ?? []
+            return other.length === mine.length && other.filter((w, i) => w !== mine[i]).length === 1
+          }),
+        )
+      }
+      if (spec.type === 'sentence-build') {
+        const build = task.sentenceBuild
+        check(`${area.id}/${spec.frame}: build task carries its slots`, !!build)
+        if (!build) continue
+        check(`${area.id}/${spec.frame}: no ready made options to pick from`, task.options.length === 0)
+        const needed = build.slots.map((s, i) => (s.fixed ? null : build.picks[i])).filter((x): x is string => x !== null)
+        check(`${area.id}/${spec.frame}: the tray holds every word the sentence needs`, needed.every((w) => build.tray.includes(w)))
+        check(`${area.id}/${spec.frame}: the tray also holds words that do not belong`, build.tray.length > needed.length)
+        check(`${area.id}/${spec.frame}: the fixed words are given, not asked for`, build.slots.some((s) => !!s.fixed))
+      }
+    }
+  }
+
   // ---------------------------------------------------------- הגדרות האזורים
   for (const area of AREAS) {
     check(`${area.id}: task count between 8 and 12`, area.tasks.length >= 8 && area.tasks.length <= 12, String(area.tasks.length))
@@ -187,7 +293,7 @@ function run(): void {
       const task = createTask(area.id, spec)
       const correct = task.options.filter((o) => o.correct)
       // בנייה היא הפקה ולא בחירה, ולכן אין לה אפשרויות מוכנות בכלל
-      if (task.type === 'say-it' || task.type === 'match-word-object' || task.type === 'blend-build') {
+      if (task.type === 'say-it' || task.type === 'match-word-object' || task.type === 'blend-build' || task.type === 'sentence-build') {
         check(`${area.id}/${spec.type}/${spec.word}: no options needed`, task.options.length === 0)
         if (task.type === 'match-word-object') {
           check(`${area.id}/match/${spec.word}: has pairs`, (task.pairs?.length ?? 0) >= 2)
@@ -650,6 +756,10 @@ function answerCorrectly(session: AreaSession): void {
     session.answerBuilt(t.build?.text ?? '')
     return
   }
+  if (t.type === 'sentence-build') {
+    session.answerBuilt(t.sentenceBuild?.text ?? '')
+    return
+  }
   session.answer(t.options.find((o) => o.correct)!.id)
 }
 
@@ -674,6 +784,19 @@ function answerCorrectlyOnScreen(host: HTMLElement, task: Task): void {
         (t) => t.textContent === grapheme && !t.classList.contains('used') && !t.disabled,
       )
       tile?.click()
+    }
+    return
+  }
+  if (task.type === 'sentence-build') {
+    // מניחים כרטיס אחר כרטיס, בסדר של המשבצות שאפשר לבחור בהן
+    const build = task.sentenceBuild
+    for (const [i, slot] of (build?.slots ?? []).entries()) {
+      if (slot.fixed) continue
+      const wanted = getWord(build!.picks[i]).english
+      const card = Array.from(host.querySelectorAll<HTMLButtonElement>('.word-card')).find(
+        (c) => c.textContent === wanted && !c.classList.contains('used') && !c.disabled,
+      )
+      card?.click()
     }
     return
   }

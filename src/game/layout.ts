@@ -33,6 +33,8 @@ export interface AreaLayout extends Zone {
     | 'garden' | 'animals' | 'kitchen' | 'numbers' | 'library' | 'friends' | 'home' | 'opposites' | 'classroom'
     // שלושת אזורי הקריאה. הם נראים אחרת בכוונה, כי שם המשחק משתנה.
     | 'sounds' | 'spells' | 'runes'
+    // שני אזורי המשפטים
+    | 'bridge' | 'wordyard'
   guide: { x: number; z: number }
   /** הגשר והשער שמובילים לאזור הבא. חסר באזור האחרון. */
   gate?: { zStart: number; zEnd: number; z: number }
@@ -51,6 +53,8 @@ const THEMES: AreaLayout['theme'][] = [
   'sounds',
   'spells',
   'runes',
+  'bridge',
+  'wordyard',
 ]
 
 // פלטה משלה לכל אזור, ולא חזרה מודולרית על חמש, כדי ששני אזורים
@@ -68,6 +72,8 @@ const PALETTES: { ground: number; wall: number; accent: number }[] = [
   { ground: 0xcbb6e8, wall: 0xe6d8f7, accent: 0xc98adf }, // מגדל הצלילים
   { ground: 0xe8d6a8, wall: 0xf6e8c8, accent: 0xe0a13c }, // אולם הלחשים
   { ground: 0xa6ddd0, wall: 0xd0f0e7, accent: 0x5ec8b0 }, // חדר הכתר
+  { ground: 0xf0c4b0, wall: 0xfadfd2, accent: 0xe0714f }, // גשר המשפטים
+  { ground: 0xc3c9f0, wall: 0xdfe3fa, accent: 0x7f8ce0 }, // חצר המילים
 ]
 
 export const COURTYARD: Zone = {

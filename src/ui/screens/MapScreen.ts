@@ -67,6 +67,8 @@ export function buildMapScreen(deps: MapDeps): HTMLElement {
 
   const back = bigButton('חזרה', deps.onBack, { emoji: '↩️', variant: 'gold' })
   screen.appendChild(el('div', { class: 'row screen-actions' }, [back]))
-  window.setTimeout(() => back.focus(), 80)
+  // עם ארבעה עשר אזורים הרשת ארוכה מהמסך, ומיקוד בכפתור שמתחתיה
+  // היה גולל את הכותרת החוצה לפני שהילדה בכלל הספיקה לראות אותה.
+  window.setTimeout(() => back.focus({ preventScroll: true }), 80)
   return screen
 }

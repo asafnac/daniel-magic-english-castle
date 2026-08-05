@@ -26,6 +26,15 @@ export interface AreaTaskSpec {
   phoneme?: string
   /** למשימת בנייה: אריחי הסחה מפורשים. אם לא צוינו, נבחרים אוטומטית. */
   extraTiles?: string[]
+  /** למשימות משפט: מזהה המסגרת מתוך sentences.ts. */
+  frame?: string
+  /**
+   * למשימות משפט: המילה בכל משבצת, לפי סדר המסגרת, כולל הקבועות.
+   * אם לא צוין, נלקחת האפשרות הראשונה בכל משבצת.
+   */
+  picks?: string[]
+  /** למשימת בניית משפט: כרטיסים מיותרים מפורשים. */
+  extraCards?: string[]
 }
 
 export interface AreaDef {
@@ -50,6 +59,8 @@ export interface AreaDef {
    * גם לא כמשימת חזרה.
    */
   phonicsSet?: 1 | 2 | 3
+  /** אזור שמלמד להרכיב משפטים. */
+  teachesSentences?: boolean
 }
 
 export const AREAS: AreaDef[] = [
@@ -384,6 +395,65 @@ export const AREAS: AreaDef[] = [
       { type: 'blend-build', word: 'frog', extraTiles: ['a', 'p'] },
       { type: 'read-word', word: 'cup', distractors: ['cap', 'cat'] },
       { type: 'read-word', word: 'bus', distractors: ['bat', 'bed'] },
+    ],
+  },
+
+  // ==================== 13. גשר המשפטים ====================
+  // עד כאן המשחק לימד מילים בודדות. כאן מתחילה הרכבה, ושתי המסגרות
+  // באזור הזה מכוונות לשתי הטעויות שדובר עברית עושה כמעט תמיד:
+  // סדר התואר, והאוגד is שבעברית פשוט לא קיים.
+  {
+    id: 'sentence-bridge',
+    order: 13,
+    title: 'גשר המשפטים',
+    emoji: '🌉',
+    accent: '#e0714f',
+    teachesSentences: true,
+    intro: 'מילה אחת פותחת דלת, אבל משפט בונה גשר. בואי נחבר מילים יחד ונראה מה קורה.',
+    done: 'בנית משפטים שלמים! שימי לב שבאנגלית התואר בא לפני החפץ, הפוך מעברית.',
+    guide: { name: 'בונה הגשרים', emoji: '🦫' },
+    words: ['the', 'is', 'big', 'small', 'happy', 'sad', 'dog', 'cat', 'fish', 'book'],
+    tasks: [
+      { type: 'sentence-pick', frame: 'the-size-noun', picks: ['the', 'big', 'dog'], word: 'dog' },
+      { type: 'sentence-pick', frame: 'the-size-noun', picks: ['the', 'small', 'cat'], word: 'cat' },
+      { type: 'sentence-build', frame: 'the-size-noun', picks: ['the', 'big', 'fish'], word: 'fish' },
+      { type: 'sentence-pick', frame: 'the-size-noun', picks: ['the', 'small', 'book'], word: 'book' },
+      { type: 'sentence-build', frame: 'the-size-noun', picks: ['the', 'small', 'dog'], word: 'dog' },
+      // המסגרת השנייה. המילה is היא כל החידוש כאן, ולכן היא קבועה
+      // ומודגשת במקום להיות עוד בחירה שאפשר לפספס.
+      { type: 'sentence-pick', frame: 'the-noun-is-adj', picks: ['the', 'cat', 'is', 'happy'], word: 'happy' },
+      { type: 'sentence-pick', frame: 'the-noun-is-adj', picks: ['the', 'dog', 'is', 'sad'], word: 'sad' },
+      { type: 'sentence-build', frame: 'the-noun-is-adj', picks: ['the', 'fish', 'is', 'big'], word: 'fish' },
+      { type: 'sentence-pick', frame: 'the-noun-is-adj', picks: ['the', 'book', 'is', 'small'], word: 'book' },
+      { type: 'sentence-build', frame: 'the-noun-is-adj', picks: ['the', 'cat', 'is', 'sad'], word: 'cat' },
+    ],
+  },
+
+  // ==================== 14. חצר המילים ====================
+  {
+    id: 'word-yard',
+    order: 14,
+    title: 'חצר המילים',
+    emoji: '🪄',
+    accent: '#7f8ce0',
+    teachesSentences: true,
+    intro: 'משפטים ארוכים יותר. שימי לב לשתי המילים הקטנות: a ו-the. בעברית הן לא קיימות, ובאנגלית אי אפשר בלעדיהן.',
+    done: 'סיימת את כל הטירה. את שומעת, את קוראת, ואת בונה משפטים שלמים בעצמך.',
+    guide: { name: 'אמן המילים', emoji: '🎩' },
+    words: ['a', 'i_pronoun', 'have', 'red', 'blue', 'green', 'yellow', 'bag', 'pen', 'dog'],
+    tasks: [
+      { type: 'sentence-pick', frame: 'i-have-a-colour-noun', picks: ['i_pronoun', 'have', 'a', 'red', 'bag'], word: 'bag' },
+      { type: 'sentence-pick', frame: 'i-have-a-colour-noun', picks: ['i_pronoun', 'have', 'a', 'blue', 'pen'], word: 'pen' },
+      { type: 'sentence-build', frame: 'i-have-a-colour-noun', picks: ['i_pronoun', 'have', 'a', 'green', 'book'], word: 'book' },
+      { type: 'sentence-pick', frame: 'i-have-a-colour-noun', picks: ['i_pronoun', 'have', 'a', 'yellow', 'fish'], word: 'fish' },
+      { type: 'sentence-build', frame: 'i-have-a-colour-noun', picks: ['i_pronoun', 'have', 'a', 'red', 'dog'], word: 'dog' },
+      // שני תארים יחד. הסדר גודל ואז צבע קבוע באנגלית, וזו הנקודה
+      // היחידה שהמסגרת האחרונה מלמדת.
+      { type: 'sentence-pick', frame: 'the-size-colour-noun', picks: ['the', 'big', 'red', 'dog'], word: 'dog' },
+      { type: 'sentence-pick', frame: 'the-size-colour-noun', picks: ['the', 'small', 'blue', 'cat'], word: 'cat' },
+      { type: 'sentence-build', frame: 'the-size-colour-noun', picks: ['the', 'big', 'green', 'bag'], word: 'bag' },
+      { type: 'sentence-pick', frame: 'the-size-colour-noun', picks: ['the', 'small', 'yellow', 'pen'], word: 'pen' },
+      { type: 'sentence-build', frame: 'the-size-colour-noun', picks: ['the', 'big', 'blue', 'fish'], word: 'fish' },
     ],
   },
 ]

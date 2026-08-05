@@ -20,11 +20,12 @@ import { buildLearnIntro } from '../ui/screens/LearnIntro'
 import { buildMapScreen } from '../ui/screens/MapScreen'
 import { buildPauseMenu } from '../ui/screens/PauseMenu'
 import { buildProgressScreen } from '../ui/screens/ProgressScreen'
+import { buildSentenceLab } from '../ui/screens/SentenceLab'
 import { buildSettingsScreen } from '../ui/screens/SettingsScreen'
 import { buildTitleScreen } from '../ui/screens/TitleScreen'
 import { DEFAULT_AVATAR } from './avatarConfig'
 
-type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn'
+type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn' | 'lab'
 
 export class App {
   private worldHost: HTMLElement
@@ -258,6 +259,17 @@ export class App {
     )
   }
 
+  /**
+   * מעבדת המשפטים. אין בה משימה ואין בה יהלומים, ולכן היא לא עוברת
+   * דרך AreaSession בכלל, אלא יושבת כמסך רגיל מעל העולם.
+   */
+  private showSentenceLab(): void {
+    this.current = 'lab'
+    this.world?.stop()
+    this.worldHost.classList.add('hidden')
+    this.setScreen(buildSentenceLab({ onBack: () => this.showWorld() }))
+  }
+
   private closeTask(): void {
     this.taskPanel?.close()
     this.session = null
@@ -309,6 +321,10 @@ export class App {
       onMap: () => {
         this.closePause()
         this.showMap()
+      },
+      onLab: () => {
+        this.closePause()
+        this.showSentenceLab()
       },
       onCustomize: () => {
         this.closePause()

@@ -132,7 +132,7 @@ export function buildProgressScreen(onBack: () => void): HTMLElement {
 
   const back = bigButton('חזרה', onBack, { emoji: '↩️', variant: 'ghost' })
   screen.appendChild(el('div', { class: 'row screen-actions' }, [back]))
-  window.setTimeout(() => back.focus(), 80)
+  window.setTimeout(() => back.focus({ preventScroll: true }), 80)
   return screen
 }
 
