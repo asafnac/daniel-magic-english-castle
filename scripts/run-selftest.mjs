@@ -21,7 +21,7 @@ import { createServer } from 'vite'
 
 const PORT = Number(process.env.SELFTEST_PORT ?? 5179)
 const HOST = '127.0.0.1'
-const PATH = '/selftest.html'
+const PAGE = 'selftest.html'
 
 let exitCode = 1
 let browser
@@ -37,7 +37,14 @@ try {
   })
   await server.listen()
 
-  const url = `http://${HOST}:${PORT}${PATH}`
+  // הכתובת נגזרת מה-base שנפתר בפועל ולא מנחשים אותה.
+  //
+  // vite.config.ts מגדיר base אחר כשרצים בתוך GitHub Actions, כי שם
+  // האתר יושב תחת /<repo>/. כתובת קשיחה עבדה מקומית והחזירה 404
+  // ב-CI בדיוק בגלל זה. שאילתה של הקונפיג הפתור נכונה בשתי הסביבות,
+  // וגם בכל base שיוגדר בעתיד.
+  const base = server.config.base ?? '/'
+  const url = `http://${HOST}:${PORT}${base}${PAGE}`
 
   const executablePath = process.env.SELFTEST_CHROMIUM
   browser = await chromium.launch(executablePath ? { executablePath } : {})
