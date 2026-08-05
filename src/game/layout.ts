@@ -29,7 +29,10 @@ export interface AreaLayout extends Zone {
   ground: number
   wallColor: number
   accent: number
-  theme: 'garden' | 'animals' | 'kitchen' | 'numbers' | 'library' | 'friends' | 'home' | 'opposites' | 'classroom'
+  theme:
+    | 'garden' | 'animals' | 'kitchen' | 'numbers' | 'library' | 'friends' | 'home' | 'opposites' | 'classroom'
+    // שלושת אזורי הקריאה. הם נראים אחרת בכוונה, כי שם המשחק משתנה.
+    | 'sounds' | 'spells' | 'runes'
   guide: { x: number; z: number }
   /** הגשר והשער שמובילים לאזור הבא. חסר באזור האחרון. */
   gate?: { zStart: number; zEnd: number; z: number }
@@ -45,6 +48,9 @@ const THEMES: AreaLayout['theme'][] = [
   'home',
   'opposites',
   'classroom',
+  'sounds',
+  'spells',
+  'runes',
 ]
 
 // פלטה משלה לכל אזור, ולא חזרה מודולרית על חמש, כדי ששני אזורים
@@ -59,6 +65,9 @@ const PALETTES: { ground: number; wall: number; accent: number }[] = [
   { ground: 0xa9dcc4, wall: 0xd2f0e2, accent: 0x7ec8a9 }, // אגף הבית
   { ground: 0xe0cdf6, wall: 0xf0e4ff, accent: 0xc79bea }, // גן ההפכים
   { ground: 0xc2ddf2, wall: 0xdcebfa, accent: 0x6aa9dd }, // כיתת הקסם
+  { ground: 0xcbb6e8, wall: 0xe6d8f7, accent: 0xc98adf }, // מגדל הצלילים
+  { ground: 0xe8d6a8, wall: 0xf6e8c8, accent: 0xe0a13c }, // אולם הלחשים
+  { ground: 0xa6ddd0, wall: 0xd0f0e7, accent: 0x5ec8b0 }, // חדר הכתר
 ]
 
 export const COURTYARD: Zone = {

@@ -90,6 +90,31 @@ export class AreaSession {
     return this.onCorrect()
   }
 
+  /**
+   * תשובה למשימת בנייה: המילה שנבנתה מאריחי הצליל.
+   *
+   * זו הדרך היחידה במשחק לענות בלי לבחור מתוך רשימה, ולכן היא לא
+   * עוברת דרך answer. ההשוואה היא לאיות המלא, כי בנייה נכונה של
+   * חלק מהמילה עדיין אינה המילה.
+   */
+  answerBuilt(text: string): AnswerResult {
+    const target = this.task.build?.text
+    if (target === undefined) return this.onWrong()
+    return text.toLowerCase() === target.toLowerCase() ? this.onCorrect() : this.onWrong()
+  }
+
+  /**
+   * כמה אריחים לחשוף במשימת בנייה. הרמז כאן אינו מסתיר הסחות
+   * אלא מניח אריחים במקום, כי במשימה שאין בה אפשרויות אין מה להסתיר.
+   */
+  currentRevealedTiles(): number {
+    const total = this.task.build?.sounds.length ?? 0
+    if (total === 0) return 0
+    if (this.lives.hint >= 3) return Math.max(0, total - 1)
+    if (this.lives.hint >= 2) return 1
+    return 0
+  }
+
   private onCorrect(): AnswerResult {
     const task = this.task
     recordSuccess(task.wordId)

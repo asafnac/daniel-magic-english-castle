@@ -19,6 +19,13 @@ export interface AreaTaskSpec {
   variant?: 'count-objects' | 'hear-number'
   /** למשימת ספירה: איזה חפץ סופרים. ברירת המחדל היא כוכבים. */
   countEmoji?: string
+  /**
+   * למשימת צליל-לאות: מזהה הצליל הנלמד, מתוך phonics.ts.
+   * שדה word ממשיך להצביע על מילת העוגן שמדגימה את הצליל.
+   */
+  phoneme?: string
+  /** למשימת בנייה: אריחי הסחה מפורשים. אם לא צוינו, נבחרים אוטומטית. */
+  extraTiles?: string[]
 }
 
 export interface AreaDef {
@@ -37,6 +44,12 @@ export interface AreaDef {
   /** המילים שנלמדות באזור, לתצוגה במסך ההתקדמות. */
   words: string[]
   tasks: AreaTaskSpec[]
+  /**
+   * אזור שמלמד לקרוא, ואיזו קבוצת צלילים הוא מלמד.
+   * אזור בלי השדה הזה הוא אזור שמיעה בלבד, ולא יציג בו שום משימת קריאה,
+   * גם לא כמשימת חזרה.
+   */
+  phonicsSet?: 1 | 2 | 3
 }
 
 export const AREAS: AreaDef[] = [
@@ -261,7 +274,7 @@ export const AREAS: AreaDef[] = [
     emoji: '🎒',
     accent: '#6aa9dd',
     intro: 'שלום! אני מר בלוט, המורה כאן. בואי נלמד מה יש בכיתה ובתיק.',
-    done: 'סיימת את כל הטירה, כולל הכיתה! את אלופה אמיתית.',
+    done: 'כל הכבוד! עכשיו נפתח מגדל הצלילים, ושם לומדים לקרוא באמת.',
     guide: { name: 'מר בלוט המורה', emoji: '🌰' },
     words: ['bag', 'pen', 'pencil', 'teacher', 'classroom', 'sit', 'stand', 'book'],
     tasks: [
@@ -279,6 +292,98 @@ export const AREAS: AreaDef[] = [
       // גם את גן הצבעים וגם את מגדל המספרים בלי ללמד אותם מחדש.
       { type: 'phrase-match', word: 'phrase_one_red_pencil', distractors: ['phrase_three_blue_bags', 'phrase_open_your_book'] },
       { type: 'phrase-match', word: 'phrase_three_blue_bags', distractors: ['phrase_one_red_pencil', 'phrase_sit_down'] },
+    ],
+  },
+
+  // ==================== 10. מגדל הצלילים ====================
+  // כאן המשחק מפסיק ללמד לזהות מילים ומתחיל ללמד לקרוא אותן.
+  // הצלילים s a t p i n נבחרו כי מהם לבד אפשר לבנות מילים אמיתיות
+  // כבר במשימה הראשונה. אלפביתי היה דוחה את זה עד סוף האלפבית.
+  {
+    id: 'sound-tower',
+    order: 10,
+    title: 'מגדל הצלילים',
+    emoji: '🔮',
+    accent: '#c98adf',
+    phonicsSet: 1,
+    intro: 'אני מרלינה, שומרת הצלילים. עד היום שמעת מילים. עכשיו נלמד לבנות אותן מצלילים, ואז תוכלי לקרוא אותן לבד.',
+    done: 'עשית את זה! בנית מילים מצלילים וקראת אותן בעצמך. זו קריאה אמיתית.',
+    guide: { name: 'מרלינה שומרת הצלילים', emoji: '🧙‍♀️' },
+    words: ['sit', 'ant', 'tap', 'pan', 'pin', 'nap', 'tin', 'spin'],
+    tasks: [
+      { type: 'sound-to-letter', word: 'sit', phoneme: 's', distractors: ['a', 't'] },
+      { type: 'sound-to-letter', word: 'ant', phoneme: 'a', distractors: ['i', 's'] },
+      { type: 'sound-to-letter', word: 'tap', phoneme: 't', distractors: ['p', 'n'] },
+      { type: 'sound-to-letter', word: 'pan', phoneme: 'p', distractors: ['t', 's'] },
+      { type: 'sound-to-letter', word: 'pin', phoneme: 'i', distractors: ['a', 'n'] },
+      { type: 'sound-to-letter', word: 'nap', phoneme: 'n', distractors: ['s', 't'] },
+      // שרשור באוזן קודם, ורק אחריו שרשור בעיניים. קל יותר לחבר
+      // צלילים ששומעים מאשר צלילים שצריך קודם לפענח מהכתב.
+      { type: 'sound-out', word: 'pin', distractors: ['pan', 'tin'] },
+      { type: 'blend-build', word: 'ant', extraTiles: ['s', 'p'] },
+      { type: 'blend-build', word: 'tap', extraTiles: ['i', 'n'] },
+      { type: 'read-word', word: 'pin', distractors: ['pan', 'tin'] },
+      { type: 'read-word', word: 'nap', distractors: ['tap', 'pan'] },
+    ],
+  },
+
+  // ==================== 11. אולם הלחשים ====================
+  {
+    id: 'spell-hall',
+    order: 11,
+    title: 'אולם הלחשים',
+    emoji: '📜',
+    accent: '#e0a13c',
+    phonicsSet: 2,
+    intro: 'שישה צלילים חדשים מחכים לך כאן, וכל אחד מהם פותח עוד מילים שתוכלי לקרוא.',
+    done: 'מדהים! עכשיו את קוראת גם cat, גם dog וגם עוד הרבה.',
+    guide: { name: 'ספרן הלחשים', emoji: '🦉' },
+    words: ['map', 'pot', 'cat', 'dog', 'pig', 'kid', 'cap', 'dig'],
+    tasks: [
+      { type: 'sound-to-letter', word: 'map', phoneme: 'm', distractors: ['n', 's'] },
+      // d מול t היא הבחנה שקל להחמיץ, ולכן היא מתורגלת במפורש
+      { type: 'sound-to-letter', word: 'dig', phoneme: 'd', distractors: ['t', 'p'] },
+      { type: 'sound-to-letter', word: 'pig', phoneme: 'g', distractors: ['d', 'p'] },
+      { type: 'sound-to-letter', word: 'pot', phoneme: 'o', distractors: ['a', 'i'] },
+      // c ו-k עושים את אותו צליל בדיוק, ולכן אף פעם לא זה מול זה:
+      // זו הייתה שאלה בלי תשובה נכונה אחת.
+      { type: 'sound-to-letter', word: 'cat', phoneme: 'c', distractors: ['g', 't'] },
+      { type: 'sound-to-letter', word: 'kid', phoneme: 'k', distractors: ['t', 'd'] },
+      { type: 'sound-out', word: 'cat', distractors: ['cap', 'pot'] },
+      { type: 'blend-build', word: 'map', extraTiles: ['t', 'i'] },
+      { type: 'blend-build', word: 'pig', extraTiles: ['a', 'm'] },
+      // cat מול cap נבדלות בצליל אחד בלבד, ולכן אי אפשר לנחש מהתמונה
+      { type: 'read-word', word: 'cat', distractors: ['cap', 'pan'] },
+      { type: 'read-word', word: 'dog', distractors: ['dig', 'pig'] },
+    ],
+  },
+
+  // ==================== 12. חדר הכתר ====================
+  {
+    id: 'rune-room',
+    order: 12,
+    title: 'חדר הכתר',
+    emoji: '👑',
+    accent: '#5ec8b0',
+    phonicsSet: 3,
+    intro: 'שבעת הצלילים האחרונים. אחריהם תוכלי לקרוא לבד עשרות מילים באנגלית.',
+    done: 'סיימת את כל הטירה, ואת יודעת לקרוא. זה הדבר הכי גדול שלמדת כאן.',
+    guide: { name: 'שומר הכתר', emoji: '🦄' },
+    words: ['bed', 'bus', 'hat', 'run', 'leg', 'hen', 'cup', 'net', 'fan', 'frog'],
+    tasks: [
+      { type: 'sound-to-letter', word: 'bed', phoneme: 'e', distractors: ['a', 'i'] },
+      { type: 'sound-to-letter', word: 'bus', phoneme: 'u', distractors: ['o', 'a'] },
+      { type: 'sound-to-letter', word: 'run', phoneme: 'r', distractors: ['n', 'm'] },
+      { type: 'sound-to-letter', word: 'hat', phoneme: 'h', distractors: ['f', 's'] },
+      { type: 'sound-to-letter', word: 'bat', phoneme: 'b', distractors: ['d', 'p'] },
+      { type: 'sound-to-letter', word: 'fan', phoneme: 'f', distractors: ['s', 'h'] },
+      { type: 'sound-to-letter', word: 'leg', phoneme: 'l', distractors: ['r', 'n'] },
+      { type: 'sound-out', word: 'hen', distractors: ['hat', 'net'] },
+      { type: 'blend-build', word: 'bed', extraTiles: ['t', 'u'] },
+      // ארבעה צלילים, כולל צרור עיצורים. זה השיא של האזור.
+      { type: 'blend-build', word: 'frog', extraTiles: ['a', 'p'] },
+      { type: 'read-word', word: 'cup', distractors: ['cap', 'cat'] },
+      { type: 'read-word', word: 'bus', distractors: ['bat', 'bed'] },
     ],
   },
 ]

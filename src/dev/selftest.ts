@@ -7,7 +7,8 @@ import { Castle } from '../game/Castle'
 import { AREA_LAYOUTS, HALF_WIDTH, SPAWN, areaAt, areaEntry } from '../game/layout'
 import { AREAS } from '../learning/areas'
 import { eraseEverything, getProgress } from '../learning/progress'
-import { createTask } from '../learning/questions'
+import { PHONICS_TYPES, createTask, type Task } from '../learning/questions'
+import { PHONEMES, decodableWords, getPhoneme, phonemesUpTo, spellingMatchesSounds, wordsUpTo } from '../learning/phonics'
 import { AreaSession } from '../learning/session'
 import { WORDS, getWord } from '../learning/vocabulary'
 import { TaskPanel } from '../ui/components/TaskPanel'
@@ -42,6 +43,111 @@ function run(): void {
     return new Set(phrases.map((w) => w.emoji)).size === phrases.length
   })())
 
+  // ---------------------------------------------------------- מנוע הצלילים
+  const phonemeIds = new Set(PHONEMES.map((p) => p.id))
+  check('phoneme ids unique', phonemeIds.size === PHONEMES.length, `${phonemeIds.size}/${PHONEMES.length}`)
+  check('every phoneme has a spoken form that is not the letter name', PHONEMES.every((p) => p.say.length > 0 && p.say !== p.grapheme.toUpperCase()))
+  check('every phoneme has a hebrew description', PHONEMES.every((p) => p.hebrew.length > 0))
+  check('every phoneme anchor word exists', PHONEMES.every((p) => ids.has(p.anchor)))
+  check(
+    'every phoneme anchor word actually contains that sound',
+    PHONEMES.every((p) => getWord(p.anchor).sounds?.includes(p.id) === true),
+    PHONEMES.filter((p) => !getWord(p.anchor).sounds?.includes(p.id)).map((p) => p.id).join(','),
+  )
+
+  const decodable = decodableWords()
+  check('there are decodable words at all', decodable.length >= 20, String(decodable.length))
+  check(
+    'every decodable word is spelled exactly by its sounds',
+    decodable.every(spellingMatchesSounds),
+    decodable.filter((w) => !spellingMatchesSounds(w)).map((w) => w.english).join(','),
+  )
+  check(
+    'every decodable word uses only known sounds',
+    decodable.every((w) => w.sounds.every((s) => phonemeIds.has(s))),
+    decodable.filter((w) => !w.sounds.every((s) => phonemeIds.has(s))).map((w) => w.english).join(','),
+  )
+  // הטענה המרכזית של הסדר הזה: כבר הקבוצה הראשונה פותחת מילים אמיתיות.
+  // אם זה מפסיק להיות נכון, אין שום סיבה לא ללמד לפי האלפבית.
+  check('the first six sounds already open real words', wordsUpTo(1).length >= 5, String(wordsUpTo(1).length))
+  check('each set of sounds opens more words than the one before', wordsUpTo(1).length < wordsUpTo(2).length && wordsUpTo(2).length < wordsUpTo(3).length,
+    `${wordsUpTo(1).length}/${wordsUpTo(2).length}/${wordsUpTo(3).length}`)
+
+  // ---------------------------------------------------------- אזורי הקריאה
+  const phonicsAreas = AREAS.filter((a) => a.phonicsSet !== undefined)
+  check('the castle has areas that teach reading', phonicsAreas.length >= 1, String(phonicsAreas.length))
+  check(
+    'reading tasks only live in areas that teach reading',
+    AREAS.every((a) => a.phonicsSet !== undefined || a.tasks.every((t) => !PHONICS_TYPES.includes(t.type))),
+  )
+
+  for (const area of phonicsAreas) {
+    const set = area.phonicsSet as 1 | 2 | 3
+    const allowed = new Set(phonemesUpTo(set).map((p) => p.id))
+
+    check(
+      `${area.id}: every taught word can be decoded with the sounds known by now`,
+      area.words.every((id) => (getWord(id).sounds ?? []).every((s) => allowed.has(s))),
+      area.words.filter((id) => !(getWord(id).sounds ?? []).every((s) => allowed.has(s))).join(','),
+    )
+
+    for (const spec of area.tasks) {
+      if (spec.type === 'sound-to-letter') {
+        const target = spec.phoneme ? PHONEMES.find((p) => p.id === spec.phoneme) : undefined
+        check(`${area.id}/${spec.phoneme}: the task names a real sound`, !!target)
+        if (!target) continue
+        check(`${area.id}/${spec.phoneme}: the sound belongs to this area or an earlier one`, allowed.has(target.id))
+        // c ו-k עושים בדיוק אותו צליל. אם שניהם מוצעים יחד, לשאלה
+        // "איזו אות עושה את הצליל הזה" יש שתי תשובות נכונות.
+        const clashing = (spec.distractors ?? []).filter((d) => PHONEMES.find((p) => p.id === d)?.say === target.say)
+        check(`${area.id}/${spec.phoneme}: no distractor makes the same sound as the answer`, clashing.length === 0, clashing.join(','))
+        check(
+          `${area.id}/${spec.phoneme}: distractors are sounds already taught`,
+          (spec.distractors ?? []).every((d) => allowed.has(d)),
+        )
+      }
+
+      if (spec.type === 'read-word' || spec.type === 'sound-out' || spec.type === 'blend-build') {
+        const word = getWord(spec.word)
+        check(`${area.id}/${spec.type}/${spec.word}: the word has a sound breakdown`, Array.isArray(word.sounds) && word.sounds.length > 0)
+        check(
+          `${area.id}/${spec.type}/${spec.word}: uses only sounds taught by now`,
+          (word.sounds ?? []).every((s) => allowed.has(s)),
+        )
+      }
+
+      // הסחות באורך שונה מאפשרות לנחות לפי אורך המילה בלי לפענח אותה
+      if (spec.type === 'read-word' && spec.distractors) {
+        const len = (getWord(spec.word).sounds ?? []).length
+        check(
+          `${area.id}/read/${spec.word}: distractors are the same length, so guessing by shape fails`,
+          spec.distractors.every((d) => (getWord(d).sounds ?? []).length === len),
+        )
+      }
+    }
+  }
+
+  // המשימה שבודקת קריאה אסור לה להשמיע את המילה מראש. ברגע שהמילה
+  // נשמעת, זו כבר שאלת שמיעה, וזו בדיוק המשימה שהמשחק כבר יודע לתת.
+  for (const area of phonicsAreas) {
+    for (const spec of area.tasks.filter((t) => t.type === 'read-word')) {
+      const task = createTask(area.id, spec)
+      check(`${area.id}/read/${spec.word}: the word is not spoken before answering`, task.speakOnStart === undefined)
+      check(`${area.id}/read/${spec.word}: the word is shown in writing`, task.showWord === getWord(spec.word).english.toLowerCase())
+      check(`${area.id}/read/${spec.word}: sounding it out is offered as help`, (task.soundScript ?? []).length > 0)
+    }
+    for (const spec of area.tasks.filter((t) => t.type === 'blend-build')) {
+      const task = createTask(area.id, spec)
+      const build = task.build
+      check(`${area.id}/build/${spec.word}: the task carries what to build`, !!build)
+      if (!build) continue
+      check(`${area.id}/build/${spec.word}: there are no ready made options to pick from`, task.options.length === 0)
+      check(`${area.id}/build/${spec.word}: the tray holds every sound the word needs`, build.sounds.every((s) => build.tray.includes(s)))
+      check(`${area.id}/build/${spec.word}: the tray also holds tiles that do not belong`, build.tray.length > build.sounds.length)
+      check(`${area.id}/build/${spec.word}: the tiles spell the word exactly`, build.sounds.map((s) => getPhoneme(s).grapheme).join('') === build.text)
+    }
+  }
+
   // ---------------------------------------------------------- הגדרות האזורים
   for (const area of AREAS) {
     check(`${area.id}: task count between 8 and 12`, area.tasks.length >= 8 && area.tasks.length <= 12, String(area.tasks.length))
@@ -51,7 +157,13 @@ function run(): void {
       } catch {
         check(`${area.id}: task word "${spec.word}" exists`, false)
       }
+      // במשימת צליל-לאות ההסחות הן מזהי צלילים, לא מזהי מילים
+      const distractorsAreSounds = spec.type === 'sound-to-letter'
       for (const d of spec.distractors ?? []) {
+        if (distractorsAreSounds) {
+          check(`${area.id}: distractor sound "${d}" exists`, PHONEMES.some((ph) => ph.id === d))
+          continue
+        }
         try {
           getWord(d)
         } catch {
@@ -74,7 +186,8 @@ function run(): void {
     for (const spec of area.tasks) {
       const task = createTask(area.id, spec)
       const correct = task.options.filter((o) => o.correct)
-      if (task.type === 'say-it' || task.type === 'match-word-object') {
+      // בנייה היא הפקה ולא בחירה, ולכן אין לה אפשרויות מוכנות בכלל
+      if (task.type === 'say-it' || task.type === 'match-word-object' || task.type === 'blend-build') {
         check(`${area.id}/${spec.type}/${spec.word}: no options needed`, task.options.length === 0)
         if (task.type === 'match-word-object') {
           check(`${area.id}/match/${spec.word}: has pairs`, (task.pairs?.length ?? 0) >= 2)
@@ -138,11 +251,7 @@ function run(): void {
   let completed = 0
   let unlocked: string | undefined
   while (guard++ < 60) {
-    const t = session.task
-    if (t.type === 'say-it') session.confirmSaid()
-    else if (t.type === 'match-word-object') {
-      for (const pair of t.pairs ?? []) session.answerPair(pair.id, pair.id)
-    } else session.answer(t.options.find((o) => o.correct)!.id)
+    answerCorrectly(session)
     const outcome = session.advance()
     completed += 1
     if (outcome.areaCompleted) {
@@ -173,10 +282,7 @@ function run(): void {
       practiceType = s2.task.type
       break
     }
-    const t = s2.task
-    if (t.type === 'say-it') s2.confirmSaid()
-    else if (t.type === 'match-word-object') for (const pair of t.pairs ?? []) s2.answerPair(pair.id, pair.id)
-    else s2.answer(t.options.find((o) => o.correct)!.id)
+    answerCorrectly(s2)
     s2.advance()
   }
   check('the missed word came back for practice', sawPractice)
@@ -421,20 +527,7 @@ function playTheWholeCastleInOrder(): void {
     while (!finished && steps < 40) {
       steps += 1
       const task = session.task
-      if (task.type === 'say-it') host.querySelector<HTMLButtonElement>('.say-it .big-btn')?.click()
-      else if (task.type === 'match-word-object') {
-        for (const pair of task.pairs ?? []) {
-          host.querySelector<HTMLButtonElement>(`.match-card.word[data-id="${pair.id}"]`)?.click()
-          host.querySelector<HTMLButtonElement>(`.match-card.object[data-id="${pair.id}"]`)?.click()
-        }
-      } else if (task.type === 'two-words') {
-        const id = task.options.find((o) => o.correct)!.id
-        const sib = host.querySelector<HTMLButtonElement>(`.option[data-id="${id}"]`)?.nextElementSibling
-        if (sib instanceof HTMLButtonElement) sib.click()
-      } else {
-        const id = task.options.find((o) => o.correct)!.id
-        host.querySelector<HTMLButtonElement>(`.option[data-id="${id}"]`)?.click()
-      }
+      answerCorrectlyOnScreen(host, task)
       host.querySelector<HTMLButtonElement>('.feedback .big-btn')?.click()
       const card = host.querySelector('.area-complete')
       if (card) {
@@ -503,22 +596,7 @@ function playThroughEveryArea(): void {
       const doneBefore = session.position.done
 
       // לוחצים על התשובה הנכונה, בדיוק כמו שילדה הייתה לוחצת
-      if (task.type === 'say-it') {
-        host.querySelector<HTMLButtonElement>('.say-it .big-btn')?.click()
-      } else if (task.type === 'match-word-object') {
-        for (const pair of task.pairs ?? []) {
-          host.querySelector<HTMLButtonElement>(`.match-card.word[data-id="${pair.id}"]`)?.click()
-          host.querySelector<HTMLButtonElement>(`.match-card.object[data-id="${pair.id}"]`)?.click()
-        }
-      } else if (task.type === 'two-words') {
-        const correctId = task.options.find((o) => o.correct)!.id
-        const btn = host.querySelector<HTMLButtonElement>(`.option[data-id="${correctId}"]`)
-        const choose = btn?.nextElementSibling
-        if (choose instanceof HTMLButtonElement) choose.click()
-      } else {
-        const correctId = task.options.find((o) => o.correct)!.id
-        host.querySelector<HTMLButtonElement>(`.option[data-id="${correctId}"]`)?.click()
-      }
+      answerCorrectlyOnScreen(host, task)
 
       // התשובה הנכונה חייבת לפתוח כרטיס משוב. אם לא, המשימה תקועה.
       const feedback = host.querySelector('.feedback')
@@ -552,6 +630,61 @@ function playThroughEveryArea(): void {
     host.remove()
   }
   eraseEverything()
+}
+
+/**
+ * עונה נכון על משימה ברמת הסשן, בלי מסך.
+ * כל סוג משימה חדש חייב להתווסף כאן, אחרת סבב שלם ייתקע עליו.
+ */
+function answerCorrectly(session: AreaSession): void {
+  const t = session.task
+  if (t.type === 'say-it') {
+    session.confirmSaid()
+    return
+  }
+  if (t.type === 'match-word-object') {
+    for (const pair of t.pairs ?? []) session.answerPair(pair.id, pair.id)
+    return
+  }
+  if (t.type === 'blend-build') {
+    session.answerBuilt(t.build?.text ?? '')
+    return
+  }
+  session.answer(t.options.find((o) => o.correct)!.id)
+}
+
+/** אותו דבר, אבל דרך לחיצות אמיתיות על המסך. */
+function answerCorrectlyOnScreen(host: HTMLElement, task: Task): void {
+  if (task.type === 'say-it') {
+    host.querySelector<HTMLButtonElement>('.say-it .big-btn')?.click()
+    return
+  }
+  if (task.type === 'match-word-object') {
+    for (const pair of task.pairs ?? []) {
+      host.querySelector<HTMLButtonElement>(`.match-card.word[data-id="${pair.id}"]`)?.click()
+      host.querySelector<HTMLButtonElement>(`.match-card.object[data-id="${pair.id}"]`)?.click()
+    }
+    return
+  }
+  if (task.type === 'blend-build') {
+    // בונים את המילה אריח אחרי אריח, לפי הסדר הנכון
+    for (const soundId of task.build?.sounds ?? []) {
+      const grapheme = getPhoneme(soundId).grapheme
+      const tile = Array.from(host.querySelectorAll<HTMLButtonElement>('.blend-tile')).find(
+        (t) => t.textContent === grapheme && !t.classList.contains('used') && !t.disabled,
+      )
+      tile?.click()
+    }
+    return
+  }
+  if (task.type === 'two-words') {
+    const id = task.options.find((o) => o.correct)!.id
+    const sib = host.querySelector<HTMLButtonElement>(`.option[data-id="${id}"]`)?.nextElementSibling
+    if (sib instanceof HTMLButtonElement) sib.click()
+    return
+  }
+  const id = task.options.find((o) => o.correct)!.id
+  host.querySelector<HTMLButtonElement>(`.option[data-id="${id}"]`)?.click()
 }
 
 /** מוודא שלחיצה נוספת בזמן האנימציה לא נספרת. */

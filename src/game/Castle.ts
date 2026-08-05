@@ -54,6 +54,9 @@ const THEME_PROPS: Record<AreaLayout['theme'], string[]> = {
   home: ['🏠', '👩', '👨', '👶', '🛋️', '🪟'],
   opposites: ['🎭', '😊', '😢', '🔵', '🔹', '🔁'],
   classroom: ['🎒', '✏️', '🖊️', '📖', '🪑', '🍎'],
+  sounds: ['🔮', '📌', '🍳', '🐜', '🚰', '🌀'],
+  spells: ['📜', '🗺️', '🍲', '🐷', '🧢', '⛏️'],
+  runes: ['👑', '🛏️', '🚌', '🐔', '🥁', '🚩'],
 }
 
 export class Castle {

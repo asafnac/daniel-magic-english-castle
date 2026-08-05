@@ -13,9 +13,10 @@ import type { Task, TaskOption } from '../../learning/questions'
 import type { AreaSession } from '../../learning/session'
 import { isRecognitionSupported, listenOnce } from '../../learning/speech'
 import { getWord } from '../../learning/vocabulary'
+import { getPhoneme } from '../../learning/phonics'
 import { bigButton, clear, el } from '../dom'
 import { DiamondBar } from './DiamondBar'
-import { playWord, sayInstruction, speakerButton } from './SpeakerButton'
+import { playSounds, playWord, sayInstruction, speakerButton } from './SpeakerButton'
 
 export interface TaskPanelDeps {
   onExit: () => void
@@ -41,6 +42,7 @@ export class TaskPanel {
   private busy = false
   private advanceTimer: number | undefined
   private cancelListen: (() => void) | null = null
+  private cancelSounds: (() => void) | null = null
   private selectedPairWord: string | null = null
 
   constructor(
@@ -102,6 +104,20 @@ export class TaskPanel {
     this.advanceTimer = undefined
     this.cancelListen?.()
     this.cancelListen = null
+    this.cancelSounds?.()
+    this.cancelSounds = null
+  }
+
+  /** משמיע את הצלילים אחד אחד, ומבטל השמעה קודמת שעוד רצה. */
+  private sayTheSounds(script: readonly string[], btn?: HTMLElement): void {
+    this.cancelSounds?.()
+    btn?.classList.add('speaking')
+    this.cancelSounds = playSounds(script, {
+      onDone: () => {
+        btn?.classList.remove('speaking')
+        this.cancelSounds = null
+      },
+    })
   }
 
   // ------------------------------------------------------------ רינדור
@@ -140,12 +156,20 @@ export class TaskPanel {
     if (carriedHint && session.lives.restartCount > 0) this.showHint(carriedHint)
 
     clear(this.body)
+    // סוג המשימה נחשף ל-CSS, כדי שמסך צפוף כמו בנייה יוכל להתכווץ
+    this.body.className = `task-body type-${task.type}`
     this.renderBody(task)
 
-    // משמיעים את המילה רק אחרי שהמסך מצויר, כדי שהיא תתלווה לתמונה
+    // משמיעים את המילה רק אחרי שהמסך מצויר, כדי שהיא תתלווה לתמונה.
+    // במשימת קריאה אין השמעה בכלל בשלב הזה: ברגע שהמילה נשמעת,
+    // אין יותר מה לפענח.
     if (task.speakOnStart) {
       window.setTimeout(() => {
         if (this.session?.task.key === task.key) playWord(task.speakOnStart as string)
+      }, 420)
+    } else if (task.soundScript && task.type !== 'read-word') {
+      window.setTimeout(() => {
+        if (this.session?.task.key === task.key) this.sayTheSounds(task.soundScript as string[])
       }, 420)
     }
 
@@ -153,17 +177,40 @@ export class TaskPanel {
   }
 
   private renderBody(task: Task): void {
+    // במשימת קריאה המילה הכתובה היא הגיבורה, ולכן היא באה לפני הכל
+    if (task.showWord) this.body.appendChild(this.buildWrittenWord(task))
     if (task.stimulus) this.body.appendChild(this.buildStimulus(task))
 
-    if (task.speakOnStart) {
-      const replay = el('div', { class: 'task-replay' }, [
-        speakerButton(task.speakOnStart, { label: 'להשמיע שוב את המילה' }),
-        el('span', { class: 'task-replay-label', text: 'לחצי כדי לשמוע שוב' }),
-      ])
-      this.body.appendChild(replay)
+    // שתי דרכי ההשמעה יושבות באותה שורה. במשימת בנייה יש גם מילה
+    // שלמה וגם צלילים בנפרד, ושתי שורות נפרדות היו דוחפות את מגש
+    // האריחים מתחת לקצה המסך במסך של 600 פיקסלים גובה.
+    if (task.speakOnStart || (task.soundScript && task.soundScript.length > 0)) {
+      const replays = el('div', { class: 'task-replays' })
+      if (task.speakOnStart) {
+        replays.appendChild(
+          el('div', { class: 'task-replay' }, [
+            speakerButton(task.speakOnStart, { label: 'להשמיע שוב את המילה' }),
+            el('span', { class: 'task-replay-label', text: 'לשמוע את המילה' }),
+          ]),
+        )
+      }
+      if (task.soundScript && task.soundScript.length > 0) {
+        replays.appendChild(this.buildSoundReplay(task))
+      }
+      this.body.appendChild(replays)
     }
 
     switch (task.type) {
+      case 'blend-build':
+        this.body.appendChild(this.buildBlend(task))
+        break
+      case 'sound-to-letter':
+        this.body.appendChild(this.buildOptions(task, 'letter-grid'))
+        break
+      case 'sound-out':
+      case 'read-word':
+        this.body.appendChild(this.buildOptions(task, 'image-grid'))
+        break
       case 'match-word-object':
         this.body.appendChild(this.buildMatch(task))
         break
@@ -206,6 +253,183 @@ export class TaskPanel {
     return box
   }
 
+  // ------------------------------------------------------------ קריאה
+
+  /**
+   * המילה הכתובה, אות אחר אות.
+   * כל אות היא אריח נפרד ולחיץ, כדי שאפשר יהיה לגעת בה ולשמוע
+   * את הצליל שלה. ככה הפענוח נעשה בקצב שלה ולא בקצב של המשחק.
+   */
+  private buildWrittenWord(task: Task): HTMLElement {
+    const box = el('div', { class: 'written-word', role: 'group', ariaLabel: 'המילה לקריאה' })
+    const letters = (task.showWord ?? '').split('')
+    const sounds = task.build?.sounds ?? []
+
+    letters.forEach((letter, i) => {
+      const soundId = sounds[i]
+      const btn = el('button', {
+        class: 'written-letter',
+        type: 'button',
+        text: letter,
+        ariaLabel: `הצליל של האות ${letter}`,
+      })
+      btn.addEventListener('click', () => {
+        const say = soundId ? getPhoneme(soundId).say : letter
+        this.sayTheSounds([say], btn)
+      })
+      box.appendChild(btn)
+    })
+    return box
+  }
+
+  /** כפתור שמשרשר את הצלילים לאט. הפיגום המרכזי של הקריאה. */
+  private buildSoundReplay(task: Task): HTMLElement {
+    const row = el('div', { class: 'task-replay sounds' })
+    const btn = el('button', {
+      class: 'speaker-btn sounds',
+      type: 'button',
+      text: '🔤',
+      ariaLabel: 'להשמיע את הצלילים אחד אחד',
+    })
+    btn.addEventListener('click', () => this.sayTheSounds(task.soundScript ?? [], btn))
+    row.appendChild(btn)
+    row.appendChild(el('span', { class: 'task-replay-label', text: 'לשמוע את הצלילים אחד אחד' }))
+    return row
+  }
+
+  /**
+   * מסך הבנייה: משבצות ריקות למעלה ומגש אריחים למטה.
+   *
+   * זו המשימה היחידה שבה אין תשובות מוכנות על המסך. לחיצה על אריח
+   * מניחה אותו במשבצת הפנויה הבאה ומשמיעה את הצליל שלו, ולחיצה על
+   * אריח שהונח מחזירה אותו למגש. אין כפתור "בדוק": ברגע שכל
+   * המשבצות מלאות, המילה נבדקת מעצמה.
+   */
+  private buildBlend(task: Task): HTMLElement {
+    const session = this.session
+    const build = task.build
+    const box = el('div', { class: 'blend-box' })
+    if (!session || !build) return box
+
+    const slotsRow = el('div', { class: 'blend-slots', role: 'group', ariaLabel: 'המילה שנבנית' })
+    const trayRow = el('div', { class: 'blend-tray', role: 'group', ariaLabel: 'אריחי הצלילים' })
+
+    /** מה יושב בכל משבצת: מזהה הצליל, או null אם היא ריקה. */
+    const placed: (string | null)[] = build.sounds.map(() => null)
+    /** אילו אריחים במגש כבר בשימוש, לפי מיקומם במגש. */
+    const usedTrayIndex: (number | null)[] = build.sounds.map(() => null)
+    const revealed = session.currentRevealedTiles()
+
+    const trayButtons: HTMLButtonElement[] = []
+    const slotButtons: HTMLButtonElement[] = []
+
+    const builtText = (): string => placed.map((id) => (id ? getPhoneme(id).grapheme : '')).join('')
+    const isFull = (): boolean => placed.every((p) => p !== null)
+
+    const refresh = (): void => {
+      placed.forEach((id, i) => {
+        const slot = slotButtons[i]
+        slot.textContent = id ? getPhoneme(id).grapheme : ''
+        slot.classList.toggle('filled', id !== null)
+        slot.classList.toggle('locked', i < revealed)
+        slot.disabled = id === null || i < revealed
+        slot.setAttribute('aria-label', id ? `משבצת ${i + 1}, האות ${getPhoneme(id).grapheme}` : `משבצת ${i + 1}, ריקה`)
+      })
+      trayButtons.forEach((btn, i) => {
+        const used = usedTrayIndex.includes(i)
+        btn.classList.toggle('used', used)
+        btn.disabled = used || this.busy
+      })
+    }
+
+    const place = (trayIndex: number): void => {
+      if (this.busy) return
+      const slot = placed.findIndex((p, i) => p === null && i >= revealed)
+      if (slot < 0) return
+      placed[slot] = build.tray[trayIndex]
+      usedTrayIndex[slot] = trayIndex
+      this.sayTheSounds([getPhoneme(build.tray[trayIndex]).say])
+      refresh()
+      if (isFull()) this.checkBuild(builtText(), slotsRow, resetPlaced)
+    }
+
+    const takeBack = (slotIndex: number): void => {
+      if (this.busy || slotIndex < revealed) return
+      placed[slotIndex] = null
+      usedTrayIndex[slotIndex] = null
+      refresh()
+    }
+
+    /**
+     * מנקה את מה שהונח אחרי טעות, ומשאיר את האריחים שהרמז נתן.
+     * בלי זה הילדה הייתה צריכה לפרק בעצמה מילה שגויה לפני כל ניסיון,
+     * וזו עבודה מיותרת בדיוק ברגע שבו היא כבר מתוסכלת.
+     */
+    const resetPlaced = (): void => {
+      for (let i = revealed; i < placed.length; i++) {
+        placed[i] = null
+        usedTrayIndex[i] = null
+      }
+      refresh()
+    }
+
+    build.sounds.forEach((_, i) => {
+      const slot = el('button', { class: 'blend-slot', type: 'button' })
+      slot.addEventListener('click', () => takeBack(i))
+      slotButtons.push(slot)
+      slotsRow.appendChild(slot)
+    })
+
+    build.tray.forEach((soundId, i) => {
+      const phoneme = getPhoneme(soundId)
+      const tile = el('button', {
+        class: 'blend-tile',
+        type: 'button',
+        text: phoneme.grapheme,
+        ariaLabel: `אריח הצליל ${phoneme.hebrew}`,
+      })
+      tile.addEventListener('click', () => place(i))
+      trayButtons.push(tile)
+      trayRow.appendChild(tile)
+    })
+
+    // רמז שמניח אריחים מראש. במשימה בלי אפשרויות אין מה להסתיר,
+    // ולכן העזרה כאן היא לתת התחלה ולא לצמצם בחירה.
+    for (let i = 0; i < revealed; i++) {
+      const soundId = build.sounds[i]
+      const trayIndex = build.tray.findIndex((s, k) => s === soundId && !usedTrayIndex.includes(k))
+      placed[i] = soundId
+      if (trayIndex >= 0) usedTrayIndex[i] = trayIndex
+    }
+
+    box.appendChild(slotsRow)
+    box.appendChild(el('p', { class: 'blend-note', text: 'לחצי על אריח כדי להניח אותו, ועל משבצת כדי להחזיר אריח' }))
+    box.appendChild(trayRow)
+    refresh()
+    this.enableArrowNav(trayRow)
+    return box
+  }
+
+  /** נבדק ברגע שכל המשבצות מלאות. אין כפתור אישור נפרד. */
+  private checkBuild(text: string, slotsRow: HTMLElement, reset: () => void): void {
+    const session = this.session
+    if (!session || this.busy) return
+    const key = session.task.key
+    const result = session.answerBuilt(text)
+    if (result.correct) {
+      slotsRow.classList.add('correct')
+      this.onCorrectResult()
+      return
+    }
+    slotsRow.classList.add('wrong')
+    this.onWrongResult(result)
+    window.setTimeout(() => {
+      if (this.session?.task.key !== key) return
+      slotsRow.classList.remove('wrong')
+      if (!result.outOfDiamonds) reset()
+    }, 780)
+  }
+
   // ------------------------------------------------------------ אפשרויות
 
   private buildOptions(task: Task, gridClass: string): HTMLElement {
@@ -231,7 +455,7 @@ export class TaskPanel {
         const group = el('div', { class: 'option-count' })
         for (let k = 0; k < opt.repeat; k++) group.appendChild(el('span', { text: opt.emoji ?? '⭐' }))
         btn.appendChild(group)
-      } else if (task.type === 'letter-sound') {
+      } else if (task.type === 'letter-sound' || task.type === 'sound-to-letter') {
         btn.appendChild(el('span', { class: 'option-letter', text: opt.emoji ?? '' }))
       } else {
         const glyph = el('span', { class: 'option-emoji', text: opt.emoji ?? '' })
@@ -462,7 +686,7 @@ export class TaskPanel {
     const word = getWord(task.wordId)
     const overlay = el('div', { class: 'feedback', role: 'dialog', ariaLabel: 'כל הכבוד' })
 
-    const emoji = task.type === 'letter-sound' ? (word.letterEmoji ?? word.emoji) : word.emoji
+    const emoji = task.feedbackEmoji ?? (task.type === 'letter-sound' ? (word.letterEmoji ?? word.emoji) : word.emoji)
     overlay.appendChild(el('div', { class: 'feedback-emoji', text: emoji }))
     overlay.appendChild(el('div', { class: 'feedback-cheer', text: pickCheer() }))
 
@@ -579,7 +803,7 @@ function optionAria(task: Task, opt: TaskOption, i: number): string {
   if (opt.scale) return `${opt.label ?? ''}`
   if (task.type === 'phrase-match') return opt.label ?? `אפשרות ${i + 1}`
   if (opt.speak) return `אפשרות ${opt.badge ?? i + 1}, לחצי כדי לשמוע`
-  if (task.type === 'letter-sound') return `האות ${opt.emoji}`
+  if (task.type === 'letter-sound' || task.type === 'sound-to-letter') return `האות ${opt.emoji}`
   if (opt.repeat && opt.repeat > 1) return `קבוצה של ${opt.repeat}`
   return opt.label ?? `אפשרות ${i + 1}`
 }

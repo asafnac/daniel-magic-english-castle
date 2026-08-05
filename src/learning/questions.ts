@@ -10,7 +10,8 @@
  */
 
 import { WORDS, getWord, speakTextFor, type Word } from './vocabulary'
-import type { AreaTaskSpec } from './areas'
+import { PHONEMES, blendScript, getDecodable, getPhoneme, type DecodableWord, type Phoneme } from './phonics'
+import { findArea, type AreaTaskSpec } from './areas'
 
 export type TaskType =
   | 'listen-pick-image'
@@ -24,6 +25,22 @@ export type TaskType =
   | 'phrase-match'
   /** שומעים "גדול" או "קטן" ובוחרים בין אותו עצם בשני גדלים. */
   | 'size-pick'
+  // ---------- משימות הקריאה ----------
+  /** שומעים צליל בודד ובוחרים את האות שמייצגת אותו. */
+  | 'sound-to-letter'
+  /** שומעים מילה מפורקת לצלילים ובוחרים את התמונה. שרשור באוזן. */
+  | 'sound-out'
+  /** בונים את המילה מאריחי צליל. הפקה, לא בחירה מרשימה. */
+  | 'blend-build'
+  /** רואים מילה כתובה בלי לשמוע אותה, מפענחים ובוחרים את התמונה. */
+  | 'read-word'
+
+/** סוגי המשימות שמלמדים לקרוא ולא רק לזהות בשמיעה. */
+export const PHONICS_TYPES: readonly TaskType[] = ['sound-to-letter', 'sound-out', 'blend-build', 'read-word']
+
+export function isPhonicsType(type: TaskType): boolean {
+  return PHONICS_TYPES.includes(type)
+}
 
 /** צורות לאפשרויות צבע, כדי שלעולם לא נסתמך על צבע בלבד. */
 export type OptionShape = 'circle' | 'square' | 'star' | 'heart' | 'flower' | 'diamond'
@@ -80,6 +97,27 @@ export interface Task {
   variant?: 'count-objects' | 'hear-number'
   /** משימת חזרה על מילה שנטעו בה. משנה רק את הניסוח. */
   isPractice?: boolean
+
+  // ---------------------------------------------------------- קריאה
+  /**
+   * הצלילים להשמעה בזה אחר זה, בהפרדה. זה מה שהופך "cat" ל-c-a-t
+   * ומאפשר לשרשר. המילה השלמה מושמעת תמיד בנפרד אחרי הצלילים,
+   * כדי שהמודל הנכון יישמע גם כשהקירובים לא מושלמים.
+   */
+  soundScript?: string[]
+  /** המילה הכתובה שמוצגת בגדול. במשימת קריאה אין השמעה לפני התשובה. */
+  showWord?: string
+  /** משימת בנייה: מה בונים ומאילו אריחים אפשר לבחור. */
+  build?: {
+    /** המילה המלאה, כפי שהיא נכתבת. */
+    text: string
+    /** מזהי הצלילים לפי הסדר הנכון. */
+    sounds: string[]
+    /** האריחים במגש, מעורבבים, כולל אריחי הסחה. */
+    tray: string[]
+  }
+  /** דורס את האימוג'י במסך המשוב. משמש למשימות שבהן הגיבור הוא אות. */
+  feedbackEmoji?: string
 }
 
 // ---------------------------------------------------------------- כלי עזר
@@ -361,6 +399,163 @@ function makeSayIt(areaId: string, _spec: AreaTaskSpec, word: Word): Task {
   }
 }
 
+// ------------------------------------------------------- מחוללי הקריאה
+
+/**
+ * הסחות לצליל. ברירת המחדל היא צלילים מאותה קבוצת הוראה או מוקדמת
+ * ממנה, כי אין טעם לבלבל עם אות שעוד לא נלמדה.
+ */
+function resolvePhonemeDistractors(target: Phoneme, spec: AreaTaskSpec, count: number): Phoneme[] {
+  if (spec.distractors && spec.distractors.length > 0) {
+    return spec.distractors.slice(0, count).map(getPhoneme)
+  }
+  const pool = PHONEMES.filter((p) => p.id !== target.id && p.set <= target.set && p.grapheme !== target.grapheme)
+  return pickRandom(pool, count)
+}
+
+/**
+ * הסחות למשימת קריאה. הבחירה כאן קריטית: אם ההסחות רחוקות,
+ * אפשר לנחות על התשובה מהתמונה בלי לפענח שום דבר. לכן מעדיפים
+ * מילים באותו אורך, ואם אפשר כאלה שנבדלות בצליל אחד בלבד.
+ */
+function resolveReadingDistractors(word: DecodableWord, spec: AreaTaskSpec, count: number): Word[] {
+  if (spec.distractors && spec.distractors.length > 0) {
+    return spec.distractors.slice(0, count).map(getWord)
+  }
+  const others = WORDS.filter((w): w is DecodableWord => w.id !== word.id && Array.isArray(w.sounds) && w.sounds.length > 0)
+  const differsByOne = others.filter(
+    (w) => w.sounds.length === word.sounds.length && w.sounds.filter((s, i) => s !== word.sounds[i]).length === 1,
+  )
+  const sameLength = others.filter((w) => w.sounds.length === word.sounds.length)
+  const pool = differsByOne.length >= count ? differsByOne : sameLength.length >= count ? sameLength : others
+  return pickRandom(pool, count)
+}
+
+function soundHints(word: DecodableWord): string[] {
+  return [
+    'בואי נשמע את הצלילים אחד אחד, לאט 👂',
+    `רמז: המילה הזאת אומרת "${word.hebrew}"`,
+    'השארתי לך רק שתי אפשרויות. את יכולה! 💛',
+  ]
+}
+
+/** צליל בודד ← האות שמייצגת אותו. הבסיס של הכל. */
+function makeSoundToLetter(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const phoneme = getPhoneme(spec.phoneme ?? '')
+  const distractors = resolvePhonemeDistractors(phoneme, spec, 2)
+  const options: TaskOption[] = shuffle([
+    { id: phoneme.id, correct: true, emoji: phoneme.grapheme, label: phoneme.hebrew },
+    ...distractors.map((d) => ({ id: d.id, correct: false, emoji: d.grapheme, label: d.hebrew })),
+  ])
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'sound-to-letter',
+    areaId,
+    wordId: word.id,
+    promptHe: 'הקשיבי לצליל ובחרי את האות שעושה אותו',
+    soundScript: [phoneme.say],
+    options,
+    feedbackEmoji: phoneme.grapheme,
+    hints: [
+      'בואי נשמע את הצליל שוב 👂',
+      `רמז: זה הצליל שפותח את המילה ${word.english}`,
+      'השארתי לך רק שתי אותיות 💛',
+    ],
+  }
+}
+
+/** שומעים את המילה מפורקת לצלילים ובוחרים תמונה. שרשור באוזן, בלי כתב. */
+function makeSoundOut(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const target = getDecodable(word.id)
+  const distractors = resolveReadingDistractors(target, spec, 2)
+  const options: TaskOption[] = shuffle([
+    { id: target.id, correct: true, emoji: target.emoji, label: target.hebrew, english: target.english },
+    ...distractors.map((d) => ({ id: d.id, correct: false, emoji: d.emoji, label: d.hebrew, english: d.english })),
+  ])
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'sound-out',
+    areaId,
+    wordId: target.id,
+    promptHe: 'הקשיבי לצלילים, חברי אותם למילה, ובחרי את התמונה',
+    soundScript: blendScript(target),
+    options,
+    hints: soundHints(target),
+  }
+}
+
+/**
+ * בניית המילה מאריחי צליל.
+ *
+ * זו המשימה היחידה במשחק שבה דניאל מייצרת משהו במקום לבחור מתוך רשימה.
+ * אין כאן אפשרויות מוכנות, ולכן אי אפשר לפסול ולנחש: או שהיא יודעת
+ * אילו צלילים מרכיבים את המילה ובאיזה סדר, או שלא.
+ */
+function makeBlendBuild(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const target = getDecodable(word.id)
+  const extras = spec.extraTiles ?? defaultExtraTiles(target, 2)
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'blend-build',
+    areaId,
+    wordId: target.id,
+    promptHe: 'הקשיבי למילה ובני אותה מהצלילים, לפי הסדר',
+    speakOnStart: speakTextFor(target),
+    soundScript: blendScript(target),
+    stimulus: { emoji: target.emoji, repeat: 1 },
+    options: [],
+    build: {
+      text: target.english.toLowerCase(),
+      sounds: target.sounds,
+      tray: shuffle([...target.sounds, ...extras]),
+    },
+    hints: [
+      'בואי נשמע את הצלילים אחד אחד. כל צליל הוא אריח 👂',
+      'שמתי לך את האריח הראשון במקום',
+      'השארתי לך רק אריח אחד להשלים. את כמעט שם 💛',
+    ],
+  }
+}
+
+/** אריחי הסחה: צלילים שלא נמצאים במילה, מתוך מה שכבר נלמד. */
+function defaultExtraTiles(word: DecodableWord, count: number): string[] {
+  const inWord = new Set(word.sounds)
+  const maxSet = Math.max(...word.sounds.map((s) => getPhoneme(s).set))
+  const pool = PHONEMES.filter((p) => !inWord.has(p.id) && p.set <= maxSet)
+  return pickRandom(pool, count).map((p) => p.id)
+}
+
+/**
+ * קריאה אמיתית: המילה מוצגת כתובה ולא מושמעת.
+ *
+ * זו הסיבה שאין כאן speakOnStart. ברגע שהמילה נשמעת, המשימה חוזרת
+ * להיות זיהוי בשמיעה, וזה בדיוק מה שהמשחק כבר יודע לעשות. ההשמעה
+ * מגיעה רק אחרי התשובה, כפרס ואישור.
+ */
+function makeReadWord(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const target = getDecodable(word.id)
+  const distractors = resolveReadingDistractors(target, spec, 2)
+  const options: TaskOption[] = shuffle([
+    { id: target.id, correct: true, emoji: target.emoji, label: target.hebrew, english: target.english },
+    ...distractors.map((d) => ({ id: d.id, correct: false, emoji: d.emoji, label: d.hebrew, english: d.english })),
+  ])
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'read-word',
+    areaId,
+    wordId: target.id,
+    promptHe: 'קראי את המילה בעצמך ובחרי את התמונה שמתאימה לה',
+    showWord: target.english.toLowerCase(),
+    soundScript: blendScript(target),
+    options,
+    hints: [
+      'תעברי על האותיות אחת אחת ותגידי כל צליל בקול 👂',
+      'לחצי על הכפתור ואני אשרשר לך את הצלילים',
+      'השארתי לך רק שתי אפשרויות 💛',
+    ],
+  }
+}
+
 // ---------------------------------------------------------------- API
 
 export function createTask(areaId: string, spec: AreaTaskSpec): Task {
@@ -384,6 +579,14 @@ export function createTask(areaId: string, spec: AreaTaskSpec): Task {
       return makeSizePick(areaId, spec, word)
     case 'say-it':
       return makeSayIt(areaId, spec, word)
+    case 'sound-to-letter':
+      return makeSoundToLetter(areaId, spec, word)
+    case 'sound-out':
+      return makeSoundOut(areaId, spec, word)
+    case 'blend-build':
+      return makeBlendBuild(areaId, spec, word)
+    case 'read-word':
+      return makeReadWord(areaId, spec, word)
   }
 }
 
@@ -393,8 +596,14 @@ export function createTask(areaId: string, spec: AreaTaskSpec): Task {
  */
 export function createPracticeTask(areaId: string, wordId: string, avoidType?: TaskType): Task {
   const word = getWord(wordId)
+  // חזרה דרך קריאה מותרת רק באזור שמלמד קריאה. למילה כמו red יש פירוק
+  // לצלילים, אבל בגן הצבעים דניאל עוד לא ראתה אף אריח צליל, ומשימת
+  // קריאה שם הייתה מבקשת ממנה משהו שאף אחד עוד לא לימד אותה.
+  const readingArea = findArea(areaId)?.phonicsSet !== undefined
   const candidates: TaskType[] =
-    word.category === 'letters'
+    readingArea && Array.isArray(word.sounds) && word.sounds.length > 0
+      ? ['read-word', 'blend-build', 'sound-out']
+      : word.category === 'letters'
       ? ['letter-sound']
       : word.category === 'numbers'
         ? ['counting', 'listen-pick-image']

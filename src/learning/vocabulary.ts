@@ -20,6 +20,8 @@ export type Category =
   | 'school'
   | 'describing'
   | 'phrases'
+  /** מילים קצרות שנועדו לפענוח בקריאה, לא לשינון בשמיעה. */
+  | 'sounds'
 
 export interface Word {
   /** מזהה ייחודי. משמש בשמירה ב-localStorage, אז עדיף לא לשנות אחרי שמשחקים. */
@@ -55,11 +57,21 @@ export interface Word {
    * כך "גדול" ו"קטן" הם אותו עצם בשני גדלים, וזה מלמד גודל ולא צורה.
    */
   sizeHint?: 'big' | 'small'
+  /**
+   * פירוק המילה לצלילים, לפי מזהי הפונמות ב-phonics.ts.
+   * מילה עם פירוק היא מילה שאפשר לפענח, כלומר לקרוא בשרשור צלילים
+   * במקום לזהות בעל פה. הפירוק חייב להרכיב בדיוק את האיות, ויש
+   * בדיקה עצמית שמוודאת את זה.
+   *
+   * לא לכל מילה יש פירוק, ובכוונה: "orange" נלמדת בשמיעה בשלב הזה
+   * ולא בקריאה, כי היא לא ניתנת לפענוח עם הצלילים שכבר נלמדו.
+   */
+  sounds?: string[]
 }
 
 export const WORDS: Word[] = [
   // ---------- צבעים ----------
-  { id: 'red', english: 'red', hebrew: 'אדום', category: 'colors', difficulty: 1, emoji: '🔴', color: '#e8443a' },
+  { id: 'red', english: 'red', hebrew: 'אדום', category: 'colors', difficulty: 1, emoji: '🔴', color: '#e8443a', sounds: ['r','e','d'] },
   { id: 'blue', english: 'blue', hebrew: 'כחול', category: 'colors', difficulty: 1, emoji: '🔵', color: '#2f7fe0' },
   { id: 'green', english: 'green', hebrew: 'ירוק', category: 'colors', difficulty: 1, emoji: '🟢', color: '#3fae5a' },
   { id: 'yellow', english: 'yellow', hebrew: 'צהוב', category: 'colors', difficulty: 1, emoji: '🟡', color: '#f3c623' },
@@ -77,13 +89,13 @@ export const WORDS: Word[] = [
   { id: 'key', english: 'key', hebrew: 'מפתח', category: 'objects', difficulty: 1, emoji: '🔑' },
   { id: 'book', english: 'book', hebrew: 'ספר', category: 'objects', difficulty: 1, emoji: '📕' },
   { id: 'heart', english: 'heart', hebrew: 'לב', category: 'objects', difficulty: 1, emoji: '❤️' },
-  { id: 'sun', english: 'sun', hebrew: 'שמש', category: 'objects', difficulty: 1, emoji: '☀️' },
+  { id: 'sun', english: 'sun', hebrew: 'שמש', category: 'objects', difficulty: 1, emoji: '☀️', sounds: ['s','u','n'] },
   { id: 'moon', english: 'moon', hebrew: 'ירח', category: 'objects', difficulty: 2, emoji: '🌙' },
   { id: 'crown', english: 'crown', hebrew: 'כתר', category: 'objects', difficulty: 2, emoji: '👑' },
 
   // ---------- חיות ----------
-  { id: 'cat', english: 'cat', hebrew: 'חתול', category: 'animals', difficulty: 1, emoji: '🐱' },
-  { id: 'dog', english: 'dog', hebrew: 'כלב', category: 'animals', difficulty: 1, emoji: '🐶' },
+  { id: 'cat', english: 'cat', hebrew: 'חתול', category: 'animals', difficulty: 1, emoji: '🐱', sounds: ['c','a','t'] },
+  { id: 'dog', english: 'dog', hebrew: 'כלב', category: 'animals', difficulty: 1, emoji: '🐶', sounds: ['d','o','g'] },
   { id: 'bird', english: 'bird', hebrew: 'ציפור', category: 'animals', difficulty: 1, emoji: '🐦' },
   { id: 'fish', english: 'fish', hebrew: 'דג', category: 'animals', difficulty: 1, emoji: '🐟' },
   { id: 'horse', english: 'horse', hebrew: 'סוס', category: 'animals', difficulty: 2, emoji: '🐴' },
@@ -111,7 +123,7 @@ export const WORDS: Word[] = [
   { id: 'seven', english: 'seven', hebrew: 'שבע', category: 'numbers', difficulty: 2, emoji: '7️⃣', count: 7 },
   { id: 'eight', english: 'eight', hebrew: 'שמונה', category: 'numbers', difficulty: 2, emoji: '8️⃣', count: 8 },
   { id: 'nine', english: 'nine', hebrew: 'תשע', category: 'numbers', difficulty: 2, emoji: '9️⃣', count: 9 },
-  { id: 'ten', english: 'ten', hebrew: 'עשר', category: 'numbers', difficulty: 2, emoji: '🔟', count: 10 },
+  { id: 'ten', english: 'ten', hebrew: 'עשר', category: 'numbers', difficulty: 2, emoji: '🔟', count: 10, sounds: ['t','e','n'] },
 
   // ---------- אותיות ----------
   // emoji הוא צורת האות עצמה. חשוב שדניאל תראה את האות האמיתית ולא סמל דומה,
@@ -154,23 +166,67 @@ export const WORDS: Word[] = [
   { id: 'house', english: 'house', hebrew: 'בית', category: 'objects', difficulty: 1, emoji: '🏠', audioKey: 'house' },
   // גדול וקטן חייבים להיות אותו עצם בשני גדלים, אחרת זה מלמד צורה ולא גודל.
   // שני אימוג'ים שונים שמוצגים באותו גודל גופן נראים פשוט כשני דברים שונים.
-  { id: 'big', english: 'big', hebrew: 'גדול', category: 'describing', difficulty: 1, emoji: '🔵', audioKey: 'big', sizeHint: 'big' },
+  { id: 'big', english: 'big', hebrew: 'גדול', category: 'describing', difficulty: 1, emoji: '🔵', audioKey: 'big', sizeHint: 'big', sounds: ['b','i','g'] },
   { id: 'small', english: 'small', hebrew: 'קטן', category: 'describing', difficulty: 1, emoji: '🔵', audioKey: 'small', sizeHint: 'small' },
   { id: 'happy', english: 'happy', hebrew: 'שמח', category: 'describing', difficulty: 1, emoji: '😊', audioKey: 'happy' },
-  { id: 'sad', english: 'sad', hebrew: 'עצוב', category: 'describing', difficulty: 1, emoji: '😢', audioKey: 'sad' },
+  { id: 'sad', english: 'sad', hebrew: 'עצוב', category: 'describing', difficulty: 1, emoji: '😢', audioKey: 'sad', sounds: ['s','a','d'] },
 
   // ---------- Jet 3: בית הספר ----------
-  { id: 'bag', english: 'bag', hebrew: 'תיק', category: 'school', difficulty: 1, emoji: '🎒', audioKey: 'bag' },
-  { id: 'pen', english: 'pen', hebrew: 'עט', category: 'school', difficulty: 2, emoji: '🖊️', audioKey: 'pen' },
+  { id: 'bag', english: 'bag', hebrew: 'תיק', category: 'school', difficulty: 1, emoji: '🎒', audioKey: 'bag', sounds: ['b','a','g'] },
+  { id: 'pen', english: 'pen', hebrew: 'עט', category: 'school', difficulty: 2, emoji: '🖊️', audioKey: 'pen', sounds: ['p','e','n'] },
   { id: 'pencil', english: 'pencil', hebrew: 'עיפרון', category: 'school', difficulty: 2, emoji: '✏️', audioKey: 'pencil' },
   { id: 'teacher', english: 'teacher', hebrew: 'מורה', category: 'school', difficulty: 2, emoji: '👩‍🏫', audioKey: 'teacher' },
   { id: 'classroom', english: 'classroom', hebrew: 'כיתה', category: 'school', difficulty: 3, emoji: '🏫', audioKey: 'classroom' },
-  { id: 'sit', english: 'sit', hebrew: 'לשבת', category: 'school', difficulty: 2, emoji: '🪑', audioKey: 'sit' },
+  { id: 'sit', english: 'sit', hebrew: 'לשבת', category: 'school', difficulty: 2, emoji: '🪑', audioKey: 'sit', sounds: ['s','i','t'] },
   { id: 'stand', english: 'stand', hebrew: 'לעמוד', category: 'school', difficulty: 2, emoji: '🧍', audioKey: 'stand' },
 
   // ---------- Jet 5: חיות החווה ----------
   { id: 'cow', english: 'cow', hebrew: 'פרה', category: 'animals', difficulty: 1, emoji: '🐄', audioKey: 'cow' },
   { id: 'duck', english: 'duck', hebrew: 'ברווז', category: 'animals', difficulty: 1, emoji: '🦆', audioKey: 'duck' },
+
+  // ---------- מילים לפענוח ----------
+  // המילים האלה לא נועדו להישמע ולהיזכר, אלא להיקרא. לכל אחת פירוק
+  // לצלילים, וכולן נבנות רק מהצלילים שכבר נלמדו. הן קצרות בכוונה:
+  // מילה בת שלושה צלילים היא המקום שבו שרשור מצליח בפעם הראשונה.
+  //
+  // חלקן זוגות מינימליים בכוונה תחילה - cat מול cap מול cup - כי רק
+  // כשההבדל בין שתי מילים הוא צליל אחד, ניחוש לפי התמונה מפסיק לעבוד
+  // וצריך באמת לפענח.
+
+  // צלילי קבוצה 1: s a t p i n
+  { id: 'ant', english: 'ant', hebrew: 'נמלה', category: 'sounds', difficulty: 1, emoji: '🐜', sounds: ['a', 'n', 't'] },
+  { id: 'pin', english: 'pin', hebrew: 'סיכה', category: 'sounds', difficulty: 1, emoji: '📌', sounds: ['p', 'i', 'n'] },
+  { id: 'pan', english: 'pan', hebrew: 'מחבת', category: 'sounds', difficulty: 1, emoji: '🍳', sounds: ['p', 'a', 'n'] },
+  { id: 'tap', english: 'tap', hebrew: 'ברז', category: 'sounds', difficulty: 1, emoji: '🚰', sounds: ['t', 'a', 'p'] },
+  { id: 'nap', english: 'nap', hebrew: 'תנומה', category: 'sounds', difficulty: 1, emoji: '😴', sounds: ['n', 'a', 'p'] },
+  { id: 'tin', english: 'tin', hebrew: 'פחית', category: 'sounds', difficulty: 1, emoji: '🥫', sounds: ['t', 'i', 'n'] },
+  { id: 'spin', english: 'spin', hebrew: 'להסתובב', category: 'sounds', difficulty: 2, emoji: '🌀', sounds: ['s', 'p', 'i', 'n'] },
+
+  // צלילי קבוצה 2: m d g o c k
+  { id: 'map', english: 'map', hebrew: 'מפה', category: 'sounds', difficulty: 1, emoji: '🗺️', sounds: ['m', 'a', 'p'] },
+  { id: 'pot', english: 'pot', hebrew: 'סיר', category: 'sounds', difficulty: 1, emoji: '🍲', sounds: ['p', 'o', 't'] },
+  { id: 'man', english: 'man', hebrew: 'איש', category: 'sounds', difficulty: 1, emoji: '👨', sounds: ['m', 'a', 'n'] },
+  { id: 'cap', english: 'cap', hebrew: 'כובע מצחייה', category: 'sounds', difficulty: 1, emoji: '🧢', sounds: ['c', 'a', 'p'] },
+  { id: 'kid', english: 'kid', hebrew: 'ילדה', category: 'sounds', difficulty: 1, emoji: '🧒', sounds: ['k', 'i', 'd'] },
+  { id: 'pig', english: 'pig', hebrew: 'חזיר', category: 'sounds', difficulty: 1, emoji: '🐷', sounds: ['p', 'i', 'g'] },
+  { id: 'dig', english: 'dig', hebrew: 'לחפור', category: 'sounds', difficulty: 1, emoji: '⛏️', sounds: ['d', 'i', 'g'] },
+
+  // צלילי קבוצה 3: e u r h b f l
+  { id: 'bed', english: 'bed', hebrew: 'מיטה', category: 'sounds', difficulty: 1, emoji: '🛏️', sounds: ['b', 'e', 'd'] },
+  { id: 'bus', english: 'bus', hebrew: 'אוטובוס', category: 'sounds', difficulty: 1, emoji: '🚌', sounds: ['b', 'u', 's'] },
+  { id: 'hat', english: 'hat', hebrew: 'כובע', category: 'sounds', difficulty: 1, emoji: '🎩', sounds: ['h', 'a', 't'] },
+  { id: 'run', english: 'run', hebrew: 'לרוץ', category: 'sounds', difficulty: 1, emoji: '🏃', sounds: ['r', 'u', 'n'] },
+  { id: 'leg', english: 'leg', hebrew: 'רגל', category: 'sounds', difficulty: 1, emoji: '🦵', sounds: ['l', 'e', 'g'] },
+  { id: 'hen', english: 'hen', hebrew: 'תרנגולת', category: 'sounds', difficulty: 1, emoji: '🐔', sounds: ['h', 'e', 'n'] },
+  { id: 'cup', english: 'cup', hebrew: 'כוס', category: 'sounds', difficulty: 1, emoji: '☕', sounds: ['c', 'u', 'p'] },
+  { id: 'net', english: 'net', hebrew: 'רשת', category: 'sounds', difficulty: 1, emoji: '🥅', sounds: ['n', 'e', 't'] },
+  { id: 'fan', english: 'fan', hebrew: 'מניפה', category: 'sounds', difficulty: 1, emoji: '🪭', sounds: ['f', 'a', 'n'] },
+  { id: 'bat', english: 'bat', hebrew: 'עטלף', category: 'sounds', difficulty: 1, emoji: '🦇', sounds: ['b', 'a', 't'] },
+  { id: 'hug', english: 'hug', hebrew: 'חיבוק', category: 'sounds', difficulty: 1, emoji: '🤗', sounds: ['h', 'u', 'g'] },
+  { id: 'frog', english: 'frog', hebrew: 'צפרדע', category: 'sounds', difficulty: 2, emoji: '🐸', sounds: ['f', 'r', 'o', 'g'] },
+  { id: 'flag', english: 'flag', hebrew: 'דגל', category: 'sounds', difficulty: 2, emoji: '🚩', sounds: ['f', 'l', 'a', 'g'] },
+  { id: 'drum', english: 'drum', hebrew: 'תוף', category: 'sounds', difficulty: 2, emoji: '🥁', sounds: ['d', 'r', 'u', 'm'] },
+  { id: 'hand', english: 'hand', hebrew: 'יד', category: 'sounds', difficulty: 2, emoji: '✋', sounds: ['h', 'a', 'n', 'd'] },
 
   // ---------- משפטים ----------
   // משפט הוא פריט רגיל לכל דבר, ולכן כל מנגנוני המשחק עובדים עליו
