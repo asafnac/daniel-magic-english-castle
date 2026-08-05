@@ -126,6 +126,8 @@ export interface Task {
   }
   /** דורס את האימוג'י במסך המשוב. משמש למשימות שבהן הגיבור הוא אות. */
   feedbackEmoji?: string
+  /** הצליל שהמשימה בודקת, אם היא בודקת צליל בודד. */
+  phonemeId?: string
 
   // ---------------------------------------------------------- משפטים
   /** המשפט שהמשימה עוסקת בו, כולל התרגום והסצנה שהוא מייצר. */
@@ -476,6 +478,7 @@ function makeSoundToLetter(areaId: string, spec: AreaTaskSpec, word: Word): Task
     areaId,
     wordId: word.id,
     promptHe: 'הקשיבי לצליל ובחרי את האות שעושה אותו',
+    phonemeId: phoneme.id,
     soundScript: [phoneme.say],
     options,
     feedbackEmoji: phoneme.grapheme,
@@ -666,6 +669,35 @@ function defaultExtraCards(frame: { slots: FrameSlot[] }, needed: readonly strin
   return pickRandom(Array.from(new Set(pool)), count)
 }
 
+/**
+ * מה המשימה הזאת בעצם בודקת, לצורך מעקב השליטה.
+ *
+ * ההקפדה כאן חשובה: לזקוף טעות ב-frog לכל אחד מארבעת הצלילים שבה
+ * זה רעש, כי אפשר לטעות בסדר בלי לטעות באף צליל. לכן צלילים נזקפים
+ * רק במשימות שבאמת בודקות צליל בודד: זיהוי צליל, ובנייה מאריחים
+ * שבה כל אריח הוא בחירה נפרדת.
+ */
+export function trackedItems(task: Task): { kind: 'word' | 'sound' | 'frame'; id: string }[] {
+  const out: { kind: 'word' | 'sound' | 'frame'; id: string }[] = []
+
+  if (task.phonemeId) {
+    out.push({ kind: 'sound', id: task.phonemeId })
+    return out
+  }
+
+  if (task.sentence) {
+    out.push({ kind: 'frame', id: task.sentence.frameId })
+    out.push({ kind: 'word', id: task.wordId })
+    return out
+  }
+
+  out.push({ kind: 'word', id: task.wordId })
+  if (task.type === 'blend-build') {
+    for (const soundId of task.build?.sounds ?? []) out.push({ kind: 'sound', id: soundId })
+  }
+  return out
+}
+
 // ---------------------------------------------------------------- API
 
 export function createTask(areaId: string, spec: AreaTaskSpec): Task {
@@ -708,12 +740,18 @@ export function createTask(areaId: string, spec: AreaTaskSpec): Task {
  * בונה משימת חזרה על מילה שנטעו בה, בסוג משימה שונה מזה שבו נטעתה,
  * כדי שהחזרה לא תרגיש כמו אותו מסך בדיוק.
  */
-export function createPracticeTask(areaId: string, wordId: string, avoidType?: TaskType): Task {
+export function createPracticeTask(
+  areaId: string,
+  wordId: string,
+  avoidType?: TaskType,
+  opts: { allowReading?: boolean } = {},
+): Task {
   const word = getWord(wordId)
   // חזרה דרך קריאה מותרת רק באזור שמלמד קריאה. למילה כמו red יש פירוק
   // לצלילים, אבל בגן הצבעים דניאל עוד לא ראתה אף אריח צליל, ומשימת
   // קריאה שם הייתה מבקשת ממנה משהו שאף אחד עוד לא לימד אותה.
-  const readingArea = findArea(areaId)?.phonicsSet !== undefined
+  // התרגול החופשי קובע בעצמו, לפי מה שכבר סיימה בטירה.
+  const readingArea = opts.allowReading ?? findArea(areaId)?.phonicsSet !== undefined
   const candidates: TaskType[] =
     readingArea && Array.isArray(word.sounds) && word.sounds.length > 0
       ? ['read-word', 'blend-build', 'sound-out']

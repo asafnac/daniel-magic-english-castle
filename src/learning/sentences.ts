@@ -190,6 +190,22 @@ function emojiFor(noun: Word | undefined, adjective: Word | undefined): string {
   return base
 }
 
+/** צירוף אקראי מהמסגרת. משמש בתרגול, כדי שלא יחזור אותו משפט. */
+export function randomPicks(frame: Frame, rand: () => number = Math.random): string[] {
+  return frame.slots.map((s) => {
+    if (s.fixed) return s.fixed
+    const choices = s.choices ?? []
+    return choices[Math.floor(rand() * choices.length)] ?? choices[0] ?? ''
+  })
+}
+
+/** שם העצם בצירוף, אם יש. משמש כדי לתלות משימה במילה אמיתית. */
+export function nounOf(frameId: string, picks: readonly string[]): string {
+  const frame = getFrame(frameId)
+  const i = frame.slots.findIndex((s) => s.role === 'noun')
+  return i >= 0 ? picks[i] : picks[picks.length - 1]
+}
+
 /** ברירת המחדל של מסגרת: האפשרות הראשונה בכל משבצת. */
 export function defaultPicks(frame: Frame): string[] {
   return frame.slots.map((s) => s.fixed ?? s.choices?.[0] ?? '')

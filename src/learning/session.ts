@@ -6,9 +6,10 @@
  */
 
 import { getArea, nextArea, type AreaDef } from './areas'
-import { createPracticeTask, createTask, type Task } from './questions'
+import { createPracticeTask, createTask, trackedItems, type Task } from './questions'
 import { Lives } from './lives'
 import { addStars, areaProgress, markWordLearned, unlockArea, updateProgress } from './progress'
+import { applyAnswer } from './mastery'
 import { nextDuePractice, recordMistake, recordSuccess, tickCooldowns } from './practice'
 
 /** כמה משימות חזרה מקסימום נשתול בסבב אחד, כדי שהאזור לא יתארך. */
@@ -28,7 +29,34 @@ export interface AnswerResult {
   hideDistractors: number
 }
 
-export class AreaSession {
+/**
+ * מה שפאנל המשימה צריך כדי להציג סבב.
+ *
+ * הופרד לממשק כדי שסבב אזור וסבב תרגול חופשי יוכלו לחלוק את אותו
+ * מסך בלי שהפאנל יידע מי משניהם מולו. בלי זה כל מצב חדש היה דורש
+ * עותק שני של כל הרינדור.
+ */
+export interface TaskSession {
+  readonly task: Task
+  readonly lives: Lives
+  readonly position: { done: number; total: number }
+  /** צבע ההדגשה של הסבב. */
+  readonly accent: string
+  /** כרטיס הסיום. */
+  readonly completion: { emoji: string; title: string; text: string; nextLabel: string }
+  answer(optionId: string): AnswerResult
+  answerPair(wordId: string, objectId: string): AnswerResult | null
+  confirmSaid(): AnswerResult
+  answerBuilt(text: string): AnswerResult
+  currentHint(): string | undefined
+  currentHideDistractors(): number
+  currentRevealedTiles(): number
+  currentRevealedWords(): number
+  restartCurrentTask(): void
+  advance(): { areaCompleted: boolean; unlockedAreaId?: string }
+}
+
+export class AreaSession implements TaskSession {
   readonly area: AreaDef
   readonly lives = new Lives()
 
@@ -60,6 +88,19 @@ export class AreaSession {
 
   get matchedPairs(): ReadonlySet<string> {
     return this.matched
+  }
+
+  get accent(): string {
+    return this.area.accent
+  }
+
+  get completion(): { emoji: string; title: string; text: string; nextLabel: string } {
+    return {
+      emoji: this.area.emoji,
+      title: `סיימת את ${this.area.title}!`,
+      text: this.area.done,
+      nextLabel: 'חזרה לטירה',
+    }
   }
 
   // ------------------------------------------------------------ תשובות
@@ -130,6 +171,7 @@ export class AreaSession {
 
   private onCorrect(): AnswerResult {
     const task = this.task
+    this.track(true)
     recordSuccess(task.wordId)
     markWordLearned(task.wordId)
     addStars(STARS_PER_TASK, this.area.id)
@@ -138,6 +180,7 @@ export class AreaSession {
 
   private onWrong(): AnswerResult {
     const task = this.task
+    this.track(false)
     recordMistake(task.wordId, task.type)
     const depleted = this.lives.loseOne()
     const hintIndex = Math.min(this.lives.hint, task.hints.length) - 1
@@ -148,6 +191,17 @@ export class AreaSession {
       hint: hintIndex >= 0 ? task.hints[hintIndex] : undefined,
       hideDistractors: this.lives.hiddenDistractors(task.options.length),
     }
+  }
+
+  /**
+   * רושם את התשובה במעקב השליטה. משימת חזרה נרשמת גם היא, כי היא
+   * מפגש אמיתי עם הפריט לכל דבר.
+   */
+  private track(correct: boolean): void {
+    const items = trackedItems(this.task)
+    updateProgress((save) => {
+      for (const item of items) applyAnswer(save, item.kind, item.id, correct)
+    })
   }
 
   /** הרמז שצריך להיות מוצג כרגע, למשל אחרי התחלה מחדש של המשימה. */

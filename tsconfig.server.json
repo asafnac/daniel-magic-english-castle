@@ -1,0 +1,18 @@
+{
+  // בנייה נפרדת לשרת. הוא רץ ב-Node ולא בדפדפן, ולכן אין לו DOM
+  // ואין לו את הספריות של Vite.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "rootDir": ".",
+    "outDir": "server/dist",
+    "sourceMap": false,
+    "declaration": false,
+    "skipLibCheck": true
+  },
+  "include": ["server/server.ts"]
+}

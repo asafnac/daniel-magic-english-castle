@@ -6,12 +6,16 @@
 import { Castle } from '../game/Castle'
 import { AREA_LAYOUTS, HALF_WIDTH, SPAWN, areaAt, areaEntry } from '../game/layout'
 import { AREAS } from '../learning/areas'
-import { eraseEverything, getProgress } from '../learning/progress'
+import { eraseEverything, freshSave, getProgress, type SaveData } from '../learning/progress'
+import { bandOf, freshStat, masteryOf, urgencyOf, type ItemStat } from '../learning/mastery'
+import { mergeSaves } from '../learning/merge'
+import { PRACTICE_ROUND, PracticeSession, candidates, practiceAvailable } from '../learning/practiceSession'
+import { createList, deleteList, parseWordList } from '../learning/wordbank'
 import { PHONICS_TYPES, createTask, type Task } from '../learning/questions'
 import { PHONEMES, decodableWords, getPhoneme, phonemesUpTo, spellingMatchesSounds, wordsUpTo } from '../learning/phonics'
 import { FRAMES, buildSentence, combinationCount, defaultPicks, neighbours } from '../learning/sentences'
-import { AreaSession } from '../learning/session'
-import { WORDS, getWord } from '../learning/vocabulary'
+import { AreaSession, type TaskSession } from '../learning/session'
+import { WORDS, findWord, getWord } from '../learning/vocabulary'
 import { TaskPanel } from '../ui/components/TaskPanel'
 import '../styles/base.css'
 import '../styles/screens.css'
@@ -253,6 +257,147 @@ function run(): void {
       }
     }
   }
+
+  // ---------------------------------------------------------- מעקב שליטה
+  eraseEverything()
+  {
+    const now = Date.UTC(2026, 0, 10)
+    const DAY = 24 * 60 * 60 * 1000
+    const make = (over: Partial<ItemStat>): ItemStat => ({ ...freshStat('word', 'x'), ...over })
+
+    check('a word never met has no mastery', masteryOf(undefined, now) === 0)
+    const fresh = make({ seen: 1, correct: 1, streak: 1, last: now, lastCorrect: now })
+    const practised = make({ seen: 6, correct: 6, streak: 6, last: now, lastCorrect: now })
+    check('answering right repeatedly beats answering right once', masteryOf(practised, now) > masteryOf(fresh, now))
+
+    const guessed = make({ seen: 4, correct: 1, wrong: 3, streak: 0, last: now, lastCorrect: now - DAY })
+    check('mostly wrong stays weak', masteryOf(guessed, now) < 0.4, String(masteryOf(guessed, now)))
+    check('a weak item is called out as needing work', bandOf(masteryOf(guessed, now), guessed) === 'shaky')
+    check('a solid item is called solid', bandOf(masteryOf(practised, now), practised) === 'solid')
+
+    // ידע נשחק. בלי הדעיכה הזאת מילה שנלמדה פעם אחת לפני חצי שנה
+    // הייתה נחשבת ידועה לנצח, והתרגול לא היה מחזיר אליה לעולם.
+    const stale = make({ seen: 6, correct: 6, streak: 6, last: now - 120 * DAY, lastCorrect: now - 120 * DAY })
+    check('knowledge fades when it is not revisited', masteryOf(stale, now) < masteryOf(practised, now), `${masteryOf(stale, now)} < ${masteryOf(practised, now)}`)
+
+    check('something just answered is not asked again immediately', urgencyOf(make({ seen: 2, correct: 2, streak: 2, last: now, lastCorrect: now }), now) < 0.1)
+    const shakyOld = make({ seen: 4, correct: 1, wrong: 3, streak: 0, last: now - 3 * DAY, lastCorrect: now - 9 * DAY })
+    const solidOld = make({ seen: 9, correct: 9, streak: 9, last: now - 3 * DAY, lastCorrect: now - 3 * DAY })
+    check('the weak item is practised before the solid one', urgencyOf(shakyOld, now) > urgencyOf(solidOld, now))
+  }
+
+  // ---------------------------------------------------------- מיזוג בין מכשירים
+  {
+    const base = freshSave()
+    const dayOne: SaveData = {
+      ...base,
+      stars: 30,
+      wordsLearned: ['cat', 'dog'],
+      areas: { ...base.areas, 'colors-garden': { unlocked: true, done: true, completedTasks: 12, stars: 17 } },
+      stats: { 'word:cat': { ...freshStat('word', 'cat'), seen: 6, correct: 6, streak: 6, bestStreak: 6, last: 5000, lastCorrect: 5000 } },
+    }
+    const dayTwo: SaveData = {
+      ...freshSave(),
+      stars: 44,
+      wordsLearned: ['cat', 'fish'],
+      areas: { ...base.areas, 'animals-yard': { unlocked: true, done: false, completedTasks: 5, stars: 5 } },
+      stats: { 'word:cat': { ...freshStat('word', 'cat'), seen: 3, correct: 1, wrong: 2, streak: 0, bestStreak: 1, last: 9000, lastCorrect: 3000 } },
+    }
+
+    const merged = mergeSaves(dayOne, dayTwo)
+    check('merge never loses stars', merged.stars === 44, String(merged.stars))
+    check('merge keeps every word learned on either device', ['cat', 'dog', 'fish'].every((w) => merged.wordsLearned.includes(w)))
+    check('an area finished on one device stays finished', merged.areas['colors-garden'].done === true)
+    check('an area started on the other device comes along', merged.areas['animals-yard'].completedTasks === 5)
+    check('mastery counters take the max and never inflate', merged.stats['word:cat'].seen === 6 && merged.stats['word:cat'].correct === 6)
+    check('a broken streak from the newer device wins', merged.stats['word:cat'].streak === 0)
+
+    // שלוש התכונות שמאפשרות לסנכרן שוב ושוב בלי שהמספרים יזחלו
+    const flipped = mergeSaves(dayTwo, dayOne)
+    // השוואה לפי תוכן ולא לפי סדר מפתחות. הטענה כאן היא שהמיזוג לא
+    // משנה נתונים, ולא שהוא משמר סדר שדות באובייקט.
+    const monotonic = (s: SaveData) => stableJson({ stars: s.stars, words: s.wordsLearned.slice().sort(), areas: s.areas, stats: s.stats })
+    check('merging in either order gives the same learning data', monotonic(merged) === monotonic(flipped))
+    check('merging a save with itself changes nothing', monotonic(mergeSaves(dayOne, dayOne)) === monotonic(dayOne))
+    check('merging twice changes nothing more', monotonic(mergeSaves(merged, dayTwo)) === monotonic(merged))
+
+    // מחיקה חייבת לשרוד סנכרון, אחרת רשימה שנמחקה חוזרת לחיים
+    const withList: SaveData = { ...freshSave(), lists: [{ id: 'l1', title: 'הכתבה', wordIds: ['cat'], created: 100, active: true }] }
+    const afterDelete: SaveData = { ...freshSave(), lists: [], deletedLists: ['l1'] }
+    check('a deleted list does not come back from the other device', mergeSaves(afterDelete, withList).lists.length === 0)
+  }
+
+  // ---------------------------------------------------------- רשימות של ההורה
+  eraseEverything()
+  {
+    const parsed = parseWordList('cat, חתול\ndog: כלב\nhouse - בית\n\n  fish\t דג ')
+    check('a pasted word list is understood', parsed.length === 4, String(parsed.length))
+    check('the english side is read correctly', parsed.map((p) => p.english).join(',') === 'cat,dog,house,fish', parsed.map((p) => p.english).join(','))
+    check('the hebrew side is read correctly', parsed[0].hebrew === 'חתול' && parsed[3].hebrew === 'דג')
+
+    const listId = createList('הכתבה שבוע 3', [{ english: 'cat', hebrew: 'חתול' }, { english: 'zebra', hebrew: 'זברה' }])
+    const save = getProgress()
+    const list = save.lists.find((l) => l.id === listId)
+    check('the list was saved', !!list)
+    check('a word the game already knows is reused, not duplicated', list?.wordIds.includes('cat') === true)
+    check('a word the game did not know was created', save.customWords.some((w) => w.english === 'zebra'))
+    check('a parent word becomes an ordinary word in the bank', !!findWord(save.customWords[0].id))
+    check('a parent word can be turned into a real task', (() => {
+      try {
+        return !!createTask('free-practice', { type: 'listen-pick-image', word: save.customWords[0].id })
+      } catch {
+        return false
+      }
+    })())
+
+    deleteList(listId)
+    check('deleting a list removes it', getProgress().lists.length === 0)
+    check('deleting a list leaves a tombstone so sync cannot resurrect it', getProgress().deletedLists.includes(listId))
+    check('deleting a list does not delete words the game shipped with', !!findWord('cat'))
+    check('deleting a list removes the words it invented', getProgress().customWords.length === 0)
+  }
+
+  // ---------------------------------------------------------- תרגול מסתגל
+  eraseEverything()
+  {
+    check('with no history there is nothing to practise', practiceAvailable() === 0, String(practiceAvailable()))
+
+    // משחקים אזור שלם, ואז בודקים שהתרגול יודע לבנות סבב ממנו
+    const warmup = new AreaSession(AREAS[0].id)
+    for (let i = 0; i < 40 && !warmup.isFinished; i++) {
+      answerCorrectly(warmup)
+      if (warmup.advance().areaCompleted) break
+    }
+    check('playing an area fills the mastery data', Object.keys(getProgress().stats).length > 0, String(Object.keys(getProgress().stats).length))
+    check('now there is something to practise', practiceAvailable() > 0, String(practiceAvailable()))
+
+    const pool = candidates()
+    check('the practice pool is sorted, most urgent first', pool.every((c, i) => i === 0 || pool[i - 1].urgency >= c.urgency))
+    check('the pool only holds things she has actually met', pool.every((c) => !!getProgress().stats[`${c.kind}:${c.id}`]))
+
+    const round = new PracticeSession()
+    check('a practice round has tasks', !round.isEmpty)
+    check('a practice round is short on purpose', round.position.total <= PRACTICE_ROUND, String(round.position.total))
+    check('practice tasks are marked as revision, so the wording is gentler', round.task.isPractice === true)
+
+    let steps = 0
+    let finished = false
+    while (steps < 40 && !finished) {
+      steps += 1
+      answerCorrectly(round)
+      finished = round.advance().areaCompleted
+    }
+    check('a practice round can be finished', finished, `steps=${steps}`)
+    check('finishing practice reports how it went', round.completion.title.length > 0 && round.completion.text.includes('מתוך'))
+
+    // מילה מרשימה של ההורה נכנסת לתרגול גם אם עוד לא נפגשה איתה
+    const listId2 = createList('הכתבה', [{ english: 'zebra', hebrew: 'זברה' }])
+    const zebra = getProgress().customWords.find((w) => w.english === 'zebra')
+    check('a brand new word from the parent still enters practice', candidates().some((c) => c.id === zebra?.id), zebra?.id ?? '(none)')
+    check('it is marked as coming from the list', candidates().find((c) => c.id === zebra?.id)?.fromList === 'הכתבה')
+    deleteList(listId2)
+  }
+  eraseEverything()
 
   // ---------------------------------------------------------- הגדרות האזורים
   for (const area of AREAS) {
@@ -742,7 +887,7 @@ function playThroughEveryArea(): void {
  * עונה נכון על משימה ברמת הסשן, בלי מסך.
  * כל סוג משימה חדש חייב להתווסף כאן, אחרת סבב שלם ייתקע עליו.
  */
-function answerCorrectly(session: AreaSession): void {
+function answerCorrectly(session: TaskSession): void {
   const t = session.task
   if (t.type === 'say-it') {
     session.confirmSaid()
@@ -808,6 +953,18 @@ function answerCorrectlyOnScreen(host: HTMLElement, task: Task): void {
   }
   const id = task.options.find((o) => o.correct)!.id
   host.querySelector<HTMLButtonElement>(`.option[data-id="${id}"]`)?.click()
+}
+
+/** JSON עם מפתחות ממוינים, להשוואת תוכן בלי תלות בסדר השדות. */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, val) => {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      const sorted: Record<string, unknown> = {}
+      for (const k of Object.keys(val as Record<string, unknown>).sort()) sorted[k] = (val as Record<string, unknown>)[k]
+      return sorted
+    }
+    return val
+  })
 }
 
 /** מוודא שלחיצה נוספת בזמן האנימציה לא נספרת. */

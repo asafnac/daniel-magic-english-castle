@@ -10,6 +10,7 @@ import { getArea } from '../learning/areas'
 import { sfxGate, sfxStar, startMusic, stopMusic } from '../learning/audio'
 import { areaProgress, flushSave, getProgress } from '../learning/progress'
 import { AreaSession } from '../learning/session'
+import { PracticeSession, practiceAvailable } from '../learning/practiceSession'
 import { Hud } from '../ui/components/Hud'
 import { sayInstruction } from '../ui/components/SpeakerButton'
 import { TaskPanel } from '../ui/components/TaskPanel'
@@ -21,11 +22,12 @@ import { buildMapScreen } from '../ui/screens/MapScreen'
 import { buildPauseMenu } from '../ui/screens/PauseMenu'
 import { buildProgressScreen } from '../ui/screens/ProgressScreen'
 import { buildSentenceLab } from '../ui/screens/SentenceLab'
+import { buildParentScreen } from '../ui/screens/ParentScreen'
 import { buildSettingsScreen } from '../ui/screens/SettingsScreen'
 import { buildTitleScreen } from '../ui/screens/TitleScreen'
 import { DEFAULT_AVATAR } from './avatarConfig'
 
-type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn' | 'lab'
+type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn' | 'lab' | 'parent'
 
 export class App {
   private worldHost: HTMLElement
@@ -78,6 +80,7 @@ export class App {
         onCustomize: () => this.showCreator('title'),
         onProgress: () => this.showProgress('title'),
         onSettings: () => this.showSettings('title'),
+        onParent: () => this.showParent('title'),
       }),
     )
   }
@@ -263,6 +266,40 @@ export class App {
    * מעבדת המשפטים. אין בה משימה ואין בה יהלומים, ולכן היא לא עוברת
    * דרך AreaSession בכלל, אלא יושבת כמסך רגיל מעל העולם.
    */
+  private showParent(back: ScreenName): void {
+    this.current = 'parent'
+    this.returnTo = back
+    this.world?.stop()
+    this.worldHost.classList.add('hidden')
+    this.setScreen(buildParentScreen({ onBack: () => (this.returnTo === 'world' ? this.showWorld() : this.showTitle()) }))
+  }
+
+  /**
+   * תרגול קסום: סבב קצר שנבנה ממה שדניאל צריכה עכשיו, ולא מרשימה
+   * כתובה מראש. זה מה שגורם למשחק לא להיגמר אחרי שסיימו את הטירה.
+   */
+  private startPractice(): void {
+    if (!this.world || !this.taskPanel) return
+    if (this.taskPanel.isOpen) return
+    if (practiceAvailable() === 0) {
+      toast('עוד אין מה לתרגל. אחרי כמה משימות בטירה זה ייפתח ✨')
+      return
+    }
+    const session = new PracticeSession()
+    if (session.isEmpty) {
+      toast('עוד אין מה לתרגל. אחרי כמה משימות בטירה זה ייפתח ✨')
+      return
+    }
+    this.session = null
+    this.current = 'world'
+    this.setScreen(null)
+    this.worldHost.classList.remove('hidden')
+    this.world.setInputEnabled(false)
+    this.world.start()
+    this.hud?.setArea('תרגול קסום', '✨')
+    this.taskPanel.open(session)
+  }
+
   private showSentenceLab(): void {
     this.current = 'lab'
     this.world?.stop()
@@ -325,6 +362,10 @@ export class App {
       onLab: () => {
         this.closePause()
         this.showSentenceLab()
+      },
+      onPractice: () => {
+        this.closePause()
+        this.startPractice()
       },
       onCustomize: () => {
         this.closePause()

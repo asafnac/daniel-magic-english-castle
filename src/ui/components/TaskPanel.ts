@@ -6,11 +6,10 @@
  * שום מסך לא דורש קריאה באנגלית.
  */
 
-import { getArea } from '../../learning/areas'
 import { sfxAreaComplete, sfxDiamondLost, sfxRetry, sfxStar, sfxSuccess } from '../../learning/audio'
 import { getProgress } from '../../learning/progress'
 import type { Task, TaskOption } from '../../learning/questions'
-import type { AreaSession } from '../../learning/session'
+import type { TaskSession } from '../../learning/session'
 import { isRecognitionSupported, listenOnce } from '../../learning/speech'
 import { getWord } from '../../learning/vocabulary'
 import { getPhoneme } from '../../learning/phonics'
@@ -38,7 +37,7 @@ export class TaskPanel {
   private progressFill: HTMLElement
   private progressText: HTMLElement
 
-  private session: AreaSession | null = null
+  private session: TaskSession | null = null
   private busy = false
   private advanceTimer: number | undefined
   private cancelListen: (() => void) | null = null
@@ -80,10 +79,10 @@ export class TaskPanel {
     return !this.root.hidden
   }
 
-  open(session: AreaSession): void {
+  open(session: TaskSession): void {
     this.session = session
     this.root.hidden = false
-    this.panel.style.setProperty('--accent', session.area.accent)
+    this.panel.style.setProperty('--accent', session.accent)
     this.render()
   }
 
@@ -881,7 +880,7 @@ export class TaskPanel {
   private showAreaComplete(unlockedAreaId: string | undefined): void {
     const session = this.session
     if (!session) return
-    const area = getArea(session.area.id)
+    const done = session.completion
     sfxAreaComplete()
 
     clear(this.body)
@@ -889,12 +888,12 @@ export class TaskPanel {
     clear(this.promptBox)
 
     const card = el('div', { class: 'area-complete' })
-    card.appendChild(el('div', { class: 'area-complete-emoji', text: area.emoji }))
-    card.appendChild(el('h2', { class: 'area-complete-title', text: `סיימת את ${area.title}!` }))
-    card.appendChild(el('p', { class: 'area-complete-text', text: area.done }))
+    card.appendChild(el('div', { class: 'area-complete-emoji', text: done.emoji }))
+    card.appendChild(el('h2', { class: 'area-complete-title', text: done.title }))
+    card.appendChild(el('p', { class: 'area-complete-text', text: done.text }))
     card.appendChild(el('div', { class: 'area-complete-stars', text: '⭐⭐⭐⭐⭐' }))
     card.appendChild(
-      bigButton(unlockedAreaId ? 'קדימה, השער נפתח!' : 'חזרה לטירה', () => this.deps.onAreaComplete(unlockedAreaId), {
+      bigButton(unlockedAreaId ? 'קדימה, השער נפתח!' : done.nextLabel, () => this.deps.onAreaComplete(unlockedAreaId), {
         emoji: unlockedAreaId ? '🚪' : '🏰',
         variant: 'gold',
       }),

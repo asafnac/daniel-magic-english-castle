@@ -24,6 +24,8 @@ export type Category =
   | 'sounds'
   /** מילות חיבור שאין להן תמונה, ומשמעותן נובעת ממקומן במשפט. */
   | 'grammar'
+  /** מילים שההורה הוסיף, למשל הכתבה מבית הספר. */
+  | 'custom'
 
 export interface Word {
   /** מזהה ייחודי. משמש בשמירה ב-localStorage, אז עדיף לא לשנות אחרי שמשחקים. */
@@ -273,6 +275,36 @@ export function getWord(id: string): Word {
 /** מחזיר מילה לפי מזהה, או undefined. לשימוש בקוד שקורא מ-localStorage ישן. */
 export function findWord(id: string): Word | undefined {
   return BY_ID.get(id)
+}
+
+/**
+ * מוסיף מילים למאגר בזמן ריצה.
+ *
+ * זו הדרך שבה מילים של ההורה, כמו הכתבה מבית הספר, הופכות למילים
+ * רגילות לכל דבר. אחרי הרישום כל מנגנוני המשחק עובדים עליהן בלי
+ * שום קוד מיוחד: getWord מוצא אותן, מחוללי המשימות בונים מהן משימות,
+ * ומעקב השליטה סופר אותן.
+ *
+ * מזהה שכבר קיים במאגר הקבוע לא נדרס. אחרת רשימה של ההורה הייתה
+ * יכולה לשנות בשקט את המשמעות של מילה שכבר נלמדה באזור.
+ */
+export function registerWords(words: readonly Word[]): void {
+  for (const word of words) {
+    if (BY_ID.has(word.id)) continue
+    BY_ID.set(word.id, word)
+    WORDS.push(word)
+  }
+}
+
+/** מסיר מילים שנרשמו בזמן ריצה. המאגר הקבוע לעולם לא נפגע. */
+export function unregisterWords(ids: readonly string[]): void {
+  for (const id of ids) {
+    const existing = BY_ID.get(id)
+    if (!existing || existing.category !== 'custom') continue
+    BY_ID.delete(id)
+    const at = WORDS.indexOf(existing)
+    if (at >= 0) WORDS.splice(at, 1)
+  }
 }
 
 export function getWords(ids: string[]): Word[] {

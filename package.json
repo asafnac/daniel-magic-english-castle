@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json",
+    "build:server": "tsc -p tsconfig.server.json",
+    "start:server": "node server/dist/server/server.js"
   },
   "dependencies": {
     "three": "^0.180.0"

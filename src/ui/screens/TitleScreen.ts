@@ -15,6 +15,7 @@ export interface TitleScreenDeps {
   onCustomize: () => void
   onProgress: () => void
   onSettings: () => void
+  onParent: () => void
 }
 
 export function buildTitleScreen(deps: TitleScreenDeps): HTMLElement {
@@ -63,6 +64,19 @@ export function buildTitleScreen(deps: TitleScreenDeps): HTMLElement {
   if (hasProgress) {
     card.appendChild(el('p', { class: 'title-note', text: `אספת עד עכשיו ${save.stars} כוכבים ⭐` }))
   }
+
+  // כניסת ההורים יושבת מתחת לכל השאר ובטקסט קטן. היא לא מוסתרת,
+  // כי אין כאן שום דבר סודי, אבל היא גם לא מתחרה על תשומת הלב
+  // של ילדה שבאה לשחק.
+  card.appendChild(
+    el('button', {
+      class: 'title-parent-link',
+      type: 'button',
+      text: 'מסך הורים',
+      ariaLabel: 'מסך הורים: נתוני התקדמות, רשימות מילים וסנכרון',
+      onClick: () => deps.onParent(),
+    }),
+  )
 
   if (!isSpeechSupported()) {
     card.appendChild(

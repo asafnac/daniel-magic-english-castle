@@ -11,6 +11,8 @@ import './styles/screens.css'
 import './styles/task.css'
 import { App } from './app/App'
 import { loadProgress } from './learning/progress'
+import { startSync } from './learning/sync'
+import { syncCustomWords } from './learning/wordbank'
 
 function hasWebGL(): boolean {
   try {
@@ -63,9 +65,15 @@ function start(): void {
   }
 
   try {
-    loadProgress()
+    const save = loadProgress()
+    // מילים שההורה הוסיף הופכות למילים רגילות במאגר לפני שהמשחק עולה,
+    // כדי שכל השאר לא יצטרך לדעת שהן שונות.
+    syncCustomWords(save)
     new App(app)
     hideBoot()
+    // הסנכרון עולה אחרי המשחק ולא לפניו. אם השרת איטי או לא זמין,
+    // דניאל כבר משחקת, וזה בדיוק הסדר הנכון.
+    startSync()
   } catch (err) {
     console.error(err)
     showFatal('משהו השתבש בדרך לטירה', 'אפשר לנסות לרענן את הדף. ההתקדמות שלך שמורה.')

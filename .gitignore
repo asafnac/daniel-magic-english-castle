@@ -10,3 +10,7 @@ Thumbs.db
 npm-debug.log*
 .env
 .env.*
+
+# פלט בניית השרת והנתונים שלו
+server/dist
+data/

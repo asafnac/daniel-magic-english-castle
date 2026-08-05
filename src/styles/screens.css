@@ -1010,3 +1010,355 @@
     font-size: 1rem;
   }
 }
+
+/* ---------- מסך הורים ---------- */
+/* המסך היחיד שנכתב למבוגר. לכן טקסט קטן יותר, צפוף יותר, ובלי
+   כפתורי ענק: הורה קורא טבלה, ילדה לוחצת על תמונות. */
+
+.parent-screen {
+  gap: 12px;
+}
+
+.parent-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.parent-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--purple-deep);
+  background: #fff;
+  border: 3px solid #eadff7;
+  border-radius: 999px;
+  padding: 8px 16px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.parent-tab.on {
+  border-color: var(--purple);
+  background: #f6efff;
+}
+
+.parent-body {
+  width: min(920px, 100%);
+}
+
+.parent-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 22px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+.parent-h2 {
+  margin: 6px 0 0;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--purple-deep);
+}
+
+.parent-note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.parent-empty {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-soft);
+  padding: 10px;
+  background: #f7f3fc;
+  border-radius: 12px;
+}
+
+/* ---------- מספרים גדולים ---------- */
+
+.parent-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.parent-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1 1 120px;
+  background: #f7f3fc;
+  border-radius: 14px;
+  padding: 10px 8px;
+}
+
+.parent-stat-value {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--purple-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.parent-stat-label {
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/* ---------- פסי שליטה ---------- */
+
+.band-solid { background: #3fae5a; }
+.band-learning { background: #f3b423; }
+.band-shaky { background: #e8654a; }
+.band-unseen { background: #cbc3d8; }
+
+.parent-bandbar {
+  display: flex;
+  height: 18px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #ece5f5;
+}
+
+.parent-bandbar span {
+  display: block;
+  height: 100%;
+}
+
+.parent-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.parent-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.parent-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ---------- אזורים ---------- */
+
+.parent-areas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.parent-area {
+  display: grid;
+  grid-template-columns: 28px minmax(96px, 1fr) 2fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.parent-area-emoji { font-size: 18px; }
+.parent-area-title { font-weight: 700; color: var(--ink); }
+
+.parent-area-bar {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: #ece5f5;
+  overflow: hidden;
+}
+
+.parent-area-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--sky), var(--purple));
+}
+
+.parent-area-note {
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- טבלה ---------- */
+
+.parent-table-wrap {
+  overflow-x: auto;
+}
+
+.parent-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.parent-table th,
+.parent-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #ece5f5;
+  text-align: start;
+  vertical-align: middle;
+}
+
+.parent-table th {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+}
+
+.parent-item {
+  font-weight: 800;
+  color: var(--purple-deep);
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+
+.parent-detail { color: var(--ink-soft); }
+
+.parent-num {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.parent-mastery {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.parent-meter {
+  display: block;
+  width: 90px;
+  height: 9px;
+  border-radius: 999px;
+  background: #ece5f5;
+  overflow: hidden;
+}
+
+.parent-meter i {
+  display: block;
+  height: 100%;
+}
+
+.parent-band-label {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* ---------- טפסים ---------- */
+
+.parent-label {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.parent-input,
+.parent-textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: #fff;
+  border: 3px solid #eadff7;
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-height: 48px;
+}
+
+.parent-input:focus-visible,
+.parent-textarea:focus-visible {
+  outline: 3px solid var(--purple);
+  outline-offset: 1px;
+}
+
+.parent-input.code,
+.parent-textarea {
+  direction: ltr;
+  text-align: start;
+}
+
+.parent-textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.parent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f7f3fc;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.parent-list-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--purple-deep);
+}
+
+.parent-list-count {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.parent-list-words {
+  font-size: 14px;
+  color: var(--ink-soft);
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+
+.parent-sync-state {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f7f3fc;
+  color: var(--ink-soft);
+}
+
+.parent-sync-state.state-ok { background: #e3f6e8; color: #256b38; }
+.parent-sync-state.state-error { background: #fdeceb; color: #94382a; }
+.parent-sync-state.state-working { background: #fff6dd; color: #7a5a11; }
+
+/* כניסת ההורים במסך הפתיחה: קיימת, אבל לא מתחרה על תשומת הלב */
+.title-parent-link {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 8px;
+  min-height: 40px;
+}
+
+.title-parent-link:hover,
+.title-parent-link:focus-visible {
+  color: var(--purple);
+}
