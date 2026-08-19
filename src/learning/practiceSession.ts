@@ -20,7 +20,7 @@ import { AREAS } from './areas'
 import { Lives } from './lives'
 import { getStat, urgencyOf, type ItemKind } from './mastery'
 import { PHONEMES } from './phonics'
-import { getProgress, updateProgress, type SaveData } from './progress'
+import { appendLog, getProgress, updateProgress, type SaveData } from './progress'
 import { createPracticeTask, createTask, trackedItems, type Task } from './questions'
 import { applyAnswer } from './mastery'
 import { FRAMES, nounOf, randomPicks } from './sentences'
@@ -303,7 +303,9 @@ export class PracticeSession implements TaskSession {
     this.answered += 1
     this.index += 1
     this.lives.startTask()
-    return { areaCompleted: this.index >= this.queue.length }
+    const done = this.index >= this.queue.length
+    if (done) appendLog({ kind: 'practice', id: 'free', correct: this.gotRight, total: this.queue.length })
+    return { areaCompleted: done }
   }
 }
 

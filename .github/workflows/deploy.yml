@@ -49,6 +49,12 @@ jobs:
       - name: Self test
         run: npm test
 
+      - name: Check the built site
+        run: npm run check:build
+
+      - name: Device test
+        run: node scripts/run-devicetest.mjs
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

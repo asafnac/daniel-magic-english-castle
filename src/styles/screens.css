@@ -1340,6 +1340,39 @@
   color: var(--ink-soft);
 }
 
+/* ההשוואה בין המכשיר לשרת. שתי שורות שמונעות בהלה, ולכן הן בולטות */
+.parent-compare {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f2f7fc;
+  border: 2px solid #d8e6f3;
+}
+
+.parent-compare-line {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.parent-compare-label {
+  flex: 0 0 64px;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+
+.parent-compare-value {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.parent-note.strong {
+  font-weight: 800;
+  color: #235c8a;
+}
+
 .parent-sync-state.state-ok { background: #e3f6e8; color: #256b38; }
 .parent-sync-state.state-error { background: #fdeceb; color: #94382a; }
 .parent-sync-state.state-working { background: #fff6dd; color: #7a5a11; }

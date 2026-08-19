@@ -10,10 +10,55 @@
 import { AREAS, FIRST_AREA_ID } from './areas'
 import { sanitizeAvatar, type AvatarConfig } from '../app/avatarConfig'
 import { sanitizeStat, type ItemStat } from './mastery'
+import { MAX_LOG } from './merge'
+import { adoptLegacySyncConfig } from './syncConfig'
 import type { TaskType } from './questions'
 
 const STORAGE_KEY = 'dmec:v1'
 const SCHEMA_VERSION = 1
+
+/**
+ * מזהה המשחק בתוך השמירה.
+ *
+ * השרת הוא קופסה טיפשה שמזוהה בקוד בלבד, ואותו שרת משרת גם את משחק
+ * החשבון של אח המשפחה. קוד שהוקלד פעמיים בטעות היה גורם לשתי השמירות
+ * לדרוס זו את זו. השדה הזה מאפשר לזהות את המצב לפני שכותבים, ולעצור.
+ */
+export const GAME_ID = 'dmec'
+
+/**
+ * שורה ביומן: מה נעשה ומתי.
+ *
+ * שלושה דברים שונים תלויים בשדה הזה, וכדאי להכיר את כולם.
+ *
+ * 1. **השרת דורש אותו.** הוא דוחה גוף בלי מערך log, וזו הגנה שפויה
+ *    מפני לקוח שבור שימחק שנה של היסטוריה בבקשה אחת. לכן השדה חייב
+ *    להתקיים מהטעינה הראשונה, ריק או לא - אחרת הסנכרון הראשון ממכשיר
+ *    חדש נכשל דווקא ברגע שההורה מנסה להתחבר בפעם הראשונה.
+ * 2. **מדדי השליטה לא יודעים לספר על זמן.** הם יודעים מה דניאל יודעת,
+ *    ולא מתי היא ישבה לשחק. היומן הוא מה שמאפשר להראות להורה שבוע
+ *    שקט או שלושה ימים ברצף.
+ * 3. **הוא ממוזג לפי מפתח יציב** - שעה, סוג ומזהה - ולכן אותה שורה
+ *    שמגיעה משני מכשירים היא שורה אחת, וסנכרון חוזר לא מכפיל כלום.
+ */
+export interface LogEntry {
+  /** מתי הסתיים, לפי שעון המכשיר שיצר את השורה. */
+  t: number
+  /** 'area' לסיום אזור, 'practice' לסבב תרגול. */
+  kind: 'area' | 'practice'
+  /** מזהה האזור, או 'free' לתרגול חופשי. */
+  id: string
+  /** כמה נענו נכון בפעם הראשונה, מתוך כמה. */
+  correct: number
+  total: number
+}
+
+/**
+ * היומן הוא היסטוריה ולא התקדמות: אף החלטה במשחק לא נשענת עליו, ולכן
+ * מותר לו להיות מוגבל. הגבול עצמו מוגדר ב-merge.ts, כי שם הוא קריטי:
+ * חיתוך מקומי שנפרד מהחיתוך של המיזוג היה מייצר שתי אמיתות.
+ */
+export { MAX_LOG }
 
 export interface Settings {
   music: boolean
@@ -66,18 +111,10 @@ export interface CustomWord {
   sounds?: string[]
 }
 
-/** הגדרות הסנכרון בין מכשירים. */
-export interface SyncConfig {
-  /** כתובת השרת. ריק פירושו שהמשחק עובד מקומית בלבד. */
-  url: string
-  /** קוד המשפחה. מזהה אקראי, בלי שם ובלי סיסמה ובלי שום פרט אישי. */
-  code: string
-  /** מתי הסתיים סנכרון מוצלח אחרון. */
-  lastSync: number
-}
-
 export interface SaveData {
   version: number
+  /** תמיד GAME_ID. מזהה שהמסמך הזה הוא שמירה של הטירה ולא של משחק אחר. */
+  game: string
   avatar: AvatarConfig | null
   settings: Settings
   stars: number
@@ -101,7 +138,8 @@ export interface SaveData {
   deletedLists: string[]
   /** מילים שההורה הגדיר ואינן במאגר הקבוע. */
   customWords: CustomWord[]
-  sync: SyncConfig
+  /** יומן הפעילות. ראו LogEntry. */
+  log: LogEntry[]
   /**
    * מונה שינויים מקומי. עולה בכל שמירה, ומשמש את הסנכרון כדי לדעת
    * שיש כאן משהו חדש לדחוף.
@@ -128,6 +166,7 @@ function freshAreas(): Record<string, AreaProgress> {
 export function freshSave(): SaveData {
   return {
     version: SCHEMA_VERSION,
+    game: GAME_ID,
     avatar: null,
     settings: { ...DEFAULT_SETTINGS },
     stars: 0,
@@ -141,7 +180,9 @@ export function freshSave(): SaveData {
     lists: [],
     deletedLists: [],
     customWords: [],
-    sync: { url: '', code: '', lastSync: 0 },
+    // ריק, אבל קיים. ראו LogEntry: בלי השדה הזה הסנכרון הראשון
+    // ממכשיר חדש נדחה על ידי השרת.
+    log: [],
     revision: 0,
   }
 }
@@ -182,6 +223,10 @@ function migrate(raw: unknown): SaveData {
 
   if (r.version !== SCHEMA_VERSION) return base
 
+  // גרסאות מוקדמות החזיקו את הגדרות הסנכרון בתוך השמירה. מעבירים
+  // אותן פעם אחת למפתח הנפרד שלהן, ומכאן והלאה השמירה לא מכילה סוד.
+  adoptLegacySyncConfig((raw as { sync?: unknown }).sync)
+
   const areas = freshAreas()
   if (r.areas && typeof r.areas === 'object') {
     for (const a of AREAS) {
@@ -198,6 +243,7 @@ function migrate(raw: unknown): SaveData {
 
   return {
     version: SCHEMA_VERSION,
+    game: GAME_ID,
     avatar: r.avatar ? sanitizeAvatar(r.avatar) : null,
     settings: {
       music: r.settings?.music !== false,
@@ -224,13 +270,50 @@ function migrate(raw: unknown): SaveData {
     lists: readLists(r.lists),
     deletedLists: Array.isArray(r.deletedLists) ? r.deletedLists.filter((x) => typeof x === 'string') : [],
     customWords: readCustomWords(r.customWords),
-    sync: {
-      url: typeof r.sync?.url === 'string' ? r.sync.url : '',
-      code: typeof r.sync?.code === 'string' ? r.sync.code : '',
-      lastSync: numOr(r.sync?.lastSync, 0),
-    },
+    log: readLog(r.log),
     revision: numOr(r.revision, 0),
   }
+}
+
+/** קריאה סלחנית של היומן. שורה פגומה נזרקת, שאר היומן שורד. */
+export function readLog(raw: unknown): LogEntry[] {
+  if (!Array.isArray(raw)) return []
+  const out: LogEntry[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const e = item as Partial<LogEntry>
+    if (typeof e.t !== 'number' || !Number.isFinite(e.t) || e.t <= 0) continue
+    if (e.kind !== 'area' && e.kind !== 'practice') continue
+    if (typeof e.id !== 'string' || !e.id) continue
+    out.push({ t: e.t, kind: e.kind, id: e.id, correct: numOr(e.correct, 0), total: numOr(e.total, 0) })
+  }
+  return trimLog(out)
+}
+
+/**
+ * סדר קבוע וגודל קבוע.
+ *
+ * הסדר לפי זמן ואז לפי מפתח, כדי ששני מכשירים שממזגים את אותן שורות
+ * יקבלו בדיוק את אותו מערך - גם כשלשתי שורות יש אותה חותמת זמן.
+ * החיתוך שומר את החדשות, כי חודש אחרון מעניין את ההורה יותר מהחודש
+ * שלפניו, ולא מונע מהמיזוג להיות אידמפוטנטי: אותו קלט נותן תמיד
+ * את אותו חיתוך.
+ */
+export function trimLog(entries: LogEntry[]): LogEntry[] {
+  const sorted = entries.slice().sort((a, b) => a.t - b.t || logKey(a).localeCompare(logKey(b)))
+  return sorted.length > MAX_LOG ? sorted.slice(sorted.length - MAX_LOG) : sorted
+}
+
+/** המפתח שלפיו שורה זהה בשני מכשירים היא שורה אחת. */
+export function logKey(entry: LogEntry): string {
+  return `${entry.t}:${entry.kind}:${entry.id}`
+}
+
+/** רושם ביומן שמשהו הסתיים. */
+export function appendLog(entry: Omit<LogEntry, 't'> & { t?: number }): void {
+  updateProgress((d) => {
+    d.log = trimLog([...d.log, { ...entry, t: entry.t ?? Date.now() }])
+  })
 }
 
 function readStats(raw: unknown): Record<string, ItemStat> {
@@ -340,17 +423,18 @@ export function replaceProgress(next: SaveData): SaveData {
 export function resetProgress(): SaveData {
   const avatar = getProgress().avatar
   const settings = { ...getProgress().settings }
-  const sync = { ...getProgress().sync }
   const lists = getProgress().lists.slice()
   const deletedLists = getProgress().deletedLists.slice()
   const customWords = getProgress().customWords.slice()
+  const log = getProgress().log.slice()
   data = freshSave()
   // המראה וההגדרות נשמרים. איפוס אמור להתחיל את הלמידה מחדש, לא למחוק את הדמות.
   data.avatar = avatar
   data.settings = settings
-  // הגדרות הסנכרון והרשימות של ההורה שורדות איפוס. איפוס נועד להתחיל
-  // את הלמידה מחדש, לא לנתק את המכשיר מהשרת ולא למחוק את ההכתבה.
-  data.sync = sync
+  // הרשימות של ההורה והיומן שורדים איפוס. איפוס נועד להתחיל את הלמידה
+  // מחדש, לא למחוק את ההכתבה ולא את ההיסטוריה שההורה מסתכל עליה.
+  // הגדרות הסנכרון ממילא לא כאן - הן במפתח נפרד, ואיפוס לא נוגע בהן.
+  data.log = log
   data.lists = lists
   data.deletedLists = deletedLists
   data.customWords = customWords

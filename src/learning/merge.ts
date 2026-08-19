@@ -58,8 +58,26 @@ export interface MergeableWord {
   sounds?: string[]
 }
 
+export interface MergeableLogEntry {
+  t: number
+  kind: 'area' | 'practice'
+  id: string
+  correct: number
+  total: number
+}
+
+/**
+ * כמה שורות יומן שומרים.
+ *
+ * הקבוע הזה מוגדר כאן ולא ב-progress.ts כי המיזוג הוא זה שחייב לחתוך
+ * בדיוק כמו הכתיבה המקומית. שני מספרים שנפרדים זה מזה היו גורמים לשני
+ * מכשירים להתכנס לשתי תשובות שונות ולכתוב זה על זה בלי סוף.
+ */
+export const MAX_LOG = 300
+
 export interface MergeableSave {
   version: number
+  game?: string
   // avatar ו-settings אטומים למיזוג: הוא לא נכנס לתוכן שלהם אלא
   // בוחר את אחד השניים כמכלול, ולכן טיפוס רחב כאן הוא הנכון.
   avatar: unknown
@@ -75,7 +93,7 @@ export interface MergeableSave {
   lists: MergeableList[]
   deletedLists: string[]
   customWords: MergeableWord[]
-  sync: { url: string; code: string; lastSync: number }
+  log: MergeableLogEntry[]
   revision: number
 }
 
@@ -84,9 +102,15 @@ type CustomList = MergeableList
 type CustomWord = MergeableWord
 type SaveData = MergeableSave
 
-/** מתי השמירה עודכנה. משמש רק לשדות שאינם מונוטוניים. */
+/**
+ * מתי השמירה עודכנה. משמש רק לשדות שאינם מונוטוניים.
+ *
+ * נגזר מהתוכן עצמו ולא מזמן הסנכרון, כי זמן הסנכרון שייך למכשיר ולא
+ * לשמירה: מכשיר ריק שסנכרן לפני דקה אינו עדכני יותר ממכשיר שדניאל
+ * שיחקה בו אתמול שעה שלמה.
+ */
 export function stampOf(save: SaveData): number {
-  return Math.max(save.sync?.lastSync ?? 0, latestActivity(save))
+  return latestActivity(save)
 }
 
 /** הפעילות האחרונה שנרשמה בשמירה. */
@@ -98,7 +122,35 @@ function latestActivity(save: SaveData): number {
   for (const list of save.lists ?? []) {
     if (list.created > latest) latest = list.created
   }
+  for (const entry of save.log ?? []) {
+    if (entry.t > latest) latest = entry.t
+  }
   return latest
+}
+
+/**
+ * איחוד שני יומנים.
+ *
+ * המפתח הוא שעה, סוג ומזהה - שלושתם נקבעים ברגע שהשורה נוצרת ולא
+ * משתנים אחר כך. לכן אותה שורה שהגיעה משני מכשירים היא שורה אחת,
+ * וסנכרון חוזר לא מכפיל כלום. הוא לא תלוי בשעון של המכשיר שממזג
+ * עכשיו, וזה מה שהופך את הפעולה לאידמפוטנטית באמת.
+ *
+ * המיון והחיתוך זהים לאלה שב-progress.ts בכוונה: שני מכשירים שממזגים
+ * את אותן שורות חייבים לקבל בדיוק את אותו מערך, אחרת כל אחד היה כותב
+ * גרסה מעט שונה בסנכרון הבא, לנצח.
+ */
+function mergeLog(a: MergeableLogEntry[] | undefined, b: MergeableLogEntry[] | undefined): MergeableLogEntry[] {
+  const seen = new Map<string, MergeableLogEntry>()
+  for (const entry of [...(a ?? []), ...(b ?? [])]) {
+    if (!entry || typeof entry.t !== 'number') continue
+    const key = `${entry.t}:${entry.kind}:${entry.id}`
+    if (!seen.has(key)) seen.set(key, entry)
+  }
+  const sorted = Array.from(seen.entries())
+    .sort((x, y) => x[1].t - y[1].t || x[0].localeCompare(y[0]))
+    .map(([, entry]) => entry)
+  return sorted.length > MAX_LOG ? sorted.slice(sorted.length - MAX_LOG) : sorted
 }
 
 function maxNum(a: number | undefined, b: number | undefined): number {
@@ -230,6 +282,7 @@ export function mergeSaves<T extends MergeableSave>(a: T, b: T): T {
 
   return {
     version: a.version,
+    game: a.game ?? b.game,
     // לא מונוטוניים: העדכני מנצח.
     avatar: newer.avatar ?? a.avatar ?? b.avatar,
     settings: newer.settings,
@@ -247,9 +300,10 @@ export function mergeSaves<T extends MergeableSave>(a: T, b: T): T {
     lists,
     deletedLists,
     customWords: mergeCustomWords(a.customWords ?? [], b.customWords ?? [], keepWordIds),
+    log: mergeLog(a.log, b.log),
 
-    // הגדרות הסנכרון תמיד של המכשיר הנוכחי, כלומר הראשון.
-    sync: { ...a.sync, lastSync: maxNum(a.sync?.lastSync, b.sync?.lastSync) },
+    // הגדרות הסנכרון אינן כאן ואף פעם לא ימוזגו: הן שייכות למכשיר,
+    // ויושבות במפתח localStorage נפרד. ראו syncConfig.ts.
     revision: maxNum(a.revision, b.revision),
   } as T
 }

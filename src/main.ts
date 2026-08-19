@@ -11,6 +11,7 @@ import './styles/screens.css'
 import './styles/task.css'
 import { App } from './app/App'
 import { loadProgress } from './learning/progress'
+import { registerServiceWorker } from './app/offline'
 import { startSync } from './learning/sync'
 import { syncCustomWords } from './learning/wordbank'
 
@@ -74,6 +75,9 @@ function start(): void {
     // הסנכרון עולה אחרי המשחק ולא לפניו. אם השרת איטי או לא זמין,
     // דניאל כבר משחקת, וזה בדיוק הסדר הנכון.
     startSync()
+    // אותו היגיון: הרישום ללא-מקוון קורה אחרי שהמסך כבר עלה, והוא
+    // לא מסוגל להיכשל בצורה שתפריע למשחק.
+    void registerServiceWorker()
   } catch (err) {
     console.error(err)
     showFatal('משהו השתבש בדרך לטירה', 'אפשר לנסות לרענן את הדף. ההתקדמות שלך שמורה.')

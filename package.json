@@ -11,7 +11,10 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json",
     "build:server": "tsc -p tsconfig.server.json",
     "start:server": "node server/dist/server/server.js",
-    "test": "node scripts/run-selftest.mjs"
+    "test": "node scripts/run-selftest.mjs",
+    "test:device": "npm run build && node scripts/check-build.mjs && node scripts/run-devicetest.mjs",
+    "check:build": "node scripts/check-build.mjs",
+    "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"

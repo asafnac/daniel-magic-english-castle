@@ -17,7 +17,29 @@ import { BAND_LABEL, bandOf, masteryOf, summarize, type ItemStat, type MasteryBa
 import { PHONEMES } from '../../learning/phonics'
 import { getProgress } from '../../learning/progress'
 import { FRAMES } from '../../learning/sentences'
-import { isConfigured, newFamilyCode, saveSyncConfig, syncNow, syncState, testConnection } from '../../learning/sync'
+import {
+  describeSave,
+  disconnectSync,
+  newFamilyCode,
+  peekServer,
+  saveSyncConfig,
+  syncConfig,
+  syncNow,
+  syncState,
+  testConnection,
+} from '../../learning/sync'
+import { syncConfigured } from '../../learning/syncConfig'
+import {
+  cacheStatus,
+  downloadForOffline,
+  installable,
+  installed,
+  isIos,
+  offlinePossible,
+  onInstallChange,
+  promptInstall,
+  resetOffline,
+} from '../../app/offline'
 import { findWord } from '../../learning/vocabulary'
 import { createList, deleteList, parseWordList, setListActive } from '../../learning/wordbank'
 import { bigButton, clear, el } from '../dom'
@@ -26,7 +48,7 @@ export interface ParentDeps {
   onBack: () => void
 }
 
-type Tab = 'overview' | 'skills' | 'lists' | 'sync'
+type Tab = 'overview' | 'skills' | 'lists' | 'sync' | 'install'
 
 /** פריט שאפשר להציג בטבלה, אחרי שנפתר לשם קריא. */
 interface Row {
@@ -52,7 +74,8 @@ export function buildParentScreen(deps: ParentDeps): HTMLElement {
     if (tab === 'overview') body.appendChild(buildOverview())
     else if (tab === 'skills') body.appendChild(buildSkills())
     else if (tab === 'lists') body.appendChild(buildLists(render))
-    else body.appendChild(buildSync(render))
+    else if (tab === 'sync') body.appendChild(buildSync(render))
+    else body.appendChild(buildInstall(render))
   }
 
   const tabDefs: { id: Tab; label: string; emoji: string }[] = [
@@ -60,6 +83,7 @@ export function buildParentScreen(deps: ParentDeps): HTMLElement {
     { id: 'skills', label: 'חוזקות וחולשות', emoji: '🎯' },
     { id: 'lists', label: 'רשימות מילים', emoji: '📝' },
     { id: 'sync', label: 'סנכרון', emoji: '🔄' },
+    { id: 'install', label: 'התקנה', emoji: '📲' },
   ]
 
   for (const def of tabDefs) {
@@ -387,14 +411,14 @@ function buildLists(refresh: () => void): HTMLElement {
 // ---------------------------------------------------------------- סנכרון
 
 function buildSync(refresh: () => void): HTMLElement {
-  const save = getProgress()
+  const config = syncConfig()
   const box = el('div', { class: 'parent-section' })
 
   box.appendChild(el('h2', { class: 'parent-h2', text: 'אותה התקדמות בכל מכשיר' }))
   box.appendChild(
     el('p', {
       class: 'parent-note',
-      text: 'בלי הגדרה, ההתקדמות נשמרת רק על המכשיר הזה. עם שרת משלך וקוד משפחה, דניאל יכולה לשחק ב-iPad ובטלפון ולהמשיך מאותו מקום. אין כאן חשבון, אימייל או סיסמה: הקוד הוא כל מה שיש, והוא לא מכיל שום פרט אישי.',
+      text: 'בלי הגדרה, ההתקדמות נשמרת רק על המכשיר הזה. עם כתובת שרת וקוד משפחה, דניאל יכולה לשחק ב-iPad ובטלפון ולהמשיך מאותו מקום. אין כאן חשבון, אימייל או סיסמה: הקוד הוא כל מה שיש, והוא לא מכיל שום פרט אישי.',
     }),
   )
 
@@ -402,19 +426,66 @@ function buildSync(refresh: () => void): HTMLElement {
 
   const url = el('input', { class: 'parent-input' }) as HTMLInputElement
   url.type = 'url'
-  url.value = save.sync.url
-  url.placeholder = 'https://castle.example.com'
+  url.value = config.url
+  url.placeholder = 'https://…workers.dev/'
   url.setAttribute('aria-label', 'כתובת השרת')
+  // כתובת וקוד הם טקסט לועזי בתוך דף בעברית. בלי כיוון מפורש הדפדפן
+  // מזיז את הלוכסן הסופי לתחילת השורה, וההורה רואה כתובת שנראית שגויה
+  // ומתחיל "לתקן" אותה.
+  url.dir = 'ltr'
 
   const code = el('input', { class: 'parent-input code' }) as HTMLInputElement
   code.type = 'text'
-  code.value = save.sync.code
+  code.value = config.code
   code.placeholder = 'קוד המשפחה'
   code.setAttribute('aria-label', 'קוד המשפחה')
+  code.dir = 'ltr'
+  // מקלדת של טאבלט מציעה תיקון אוטומטי ואות ראשונה גדולה. על קוד
+  // אקראי שני אלה עושים רק נזק.
+  code.autocapitalize = 'characters'
+  code.autocomplete = 'off'
+  code.spellcheck = false
+
+  // ההשוואה בין המכשיר הזה לשרת. זה החלק שמונע בהלה: הורה שפותח את
+  // המשחק במכשיר שדניאל לא שיחקה בו רואה מסך ריק, ובלי השורות האלה
+  // אין לו דרך להבחין בין "המכשיר הזה עוד לא סונכרן" לבין "הכל נמחק".
+  const compare = el('div', { class: 'parent-compare', role: 'status' })
+  // שומר על תשובה ישנה שהגיעה באיחור מלדרוס תשובה חדשה יותר.
+  let compareToken = 0
+
+  const showCompare = (): void => {
+    if (!syncConfigured(syncConfig())) {
+      clear(compare)
+      return
+    }
+    const token = ++compareToken
+    clear(compare)
+    compare.appendChild(el('p', { class: 'parent-note', text: 'בודק מה יש בשרת…' }))
+    void peekServer().then((res) => {
+      if (token !== compareToken) return
+      clear(compare)
+      const here = describeSave(getProgress())
+      compare.appendChild(compareLine('כאן', here ?? '—'))
+      if (!res.ok) {
+        compare.appendChild(el('p', { class: 'parent-sync-state state-error', text: res.message }))
+        return
+      }
+      compare.appendChild(compareLine('בשרת', describeSave(res.save) ?? 'עדיין ריק'))
+      compare.appendChild(compareLine('עודכן', res.updatedAt ? whenText(res.updatedAt) : '—'))
+      if (res.save) {
+        compare.appendChild(
+          el('p', {
+            class: 'parent-note strong',
+            text: 'ההתקדמות קיימת בשרת. לחיצה על "לסנכרן עכשיו" תוריד אותה למכשיר הזה, ולא תמחק שום דבר משני הצדדים.',
+          }),
+        )
+      }
+    })
+  }
 
   const makeCode = bigButton('לייצר קוד חדש', () => {
     code.value = newFamilyCode()
-    status.textContent = 'קוד חדש נוצר. שמרי אותו, והקלידי אותו גם במכשירים האחרים.'
+    status.textContent = 'קוד חדש נוצר. כדאי לשמור אותו, ולהקליד אותו גם במכשירים האחרים. לחצי "לסנכרן עכשיו" כדי לשמור אותו כאן.'
   }, { emoji: '🎲', variant: 'small ghost' })
 
   const test = bigButton('לבדוק חיבור', () => {
@@ -424,11 +495,19 @@ function buildSync(refresh: () => void): HTMLElement {
     })
   }, { emoji: '🔌', variant: 'small ghost' })
 
-  const save2 = bigButton('לשמור ולסנכרן', () => {
+  // כפתור אחד שגם שומר וגם מסנכרן, ותמיד לפי מה שעל המסך.
+  // גרסה שדרשה "לשמור" קודם ואז לא עשתה כלום היא בדיוק מה שגורם
+  // לכפתור להיראות שבור.
+  const syncButton = bigButton('לסנכרן עכשיו', () => {
+    if (!url.value.trim() || !code.value.trim()) {
+      status.textContent = 'צריך גם כתובת שרת וגם קוד משפחה לפני שאפשר לסנכרן.'
+      return
+    }
     saveSyncConfig(url.value, code.value)
-    status.textContent = 'שומר…'
+    status.textContent = 'מסנכרן…'
     void syncNow().then((r) => {
       status.textContent = r.message
+      showCompare()
       refresh()
     })
   }, { emoji: '🔄', variant: 'sky' })
@@ -438,19 +517,127 @@ function buildSync(refresh: () => void): HTMLElement {
   box.appendChild(el('label', { class: 'parent-label', text: 'קוד המשפחה' }))
   box.appendChild(code)
   box.appendChild(el('div', { class: 'row' }, [makeCode, test]))
-  box.appendChild(save2)
+  box.appendChild(syncButton)
   box.appendChild(status)
+  box.appendChild(compare)
 
-  if (isConfigured(save.sync) && save.sync.lastSync > 0) {
-    box.appendChild(el('p', { class: 'parent-note', text: `סונכרן לאחרונה ${agoText(save.sync.lastSync)}.` }))
+  if (syncConfigured(config) && config.lastAt > 0) {
+    box.appendChild(el('p', { class: 'parent-note', text: `סונכרן לאחרונה ${agoText(config.lastAt)}.` }))
+  }
+
+  if (syncConfigured(config)) {
+    box.appendChild(
+      bigButton('לנתק את המכשיר הזה', () => {
+        disconnectSync()
+        status.textContent = syncState().message
+        refresh()
+      }, { emoji: '🔌', variant: 'small ghost' }),
+    )
   }
 
   box.appendChild(
     el('p', {
       class: 'parent-note',
-      text: 'השרת חייב להיות מאחורי HTTPS. הדפדפן חוסם ממילא פנייה לכתובת לא מאובטחת מדף מאובטח, וזה טוב: הקוד לא אמור לעבור גלוי ברשת. הוראות ההתקנה נמצאות בקובץ server/README.md בפרויקט.',
+      text: 'השרת חייב להיות מאחורי HTTPS. הדפדפן חוסם ממילא פנייה לכתובת לא מאובטחת מדף מאובטח, וזה טוב: הקוד לא אמור לעבור גלוי ברשת. הקוד עצמו נשמר רק על המכשיר, לא בתוך קובץ ההתקדמות.',
     }),
   )
+
+  showCompare()
+  return box
+}
+
+function compareLine(label: string, value: string): HTMLElement {
+  return el('p', { class: 'parent-compare-line' }, [
+    el('span', { class: 'parent-compare-label', text: `${label}:` }),
+    el('span', { class: 'parent-compare-value', text: value }),
+  ])
+}
+
+/** תאריך מהשרת, בעברית. */
+function whenText(iso: string): string {
+  const at = Date.parse(iso)
+  if (!Number.isFinite(at)) return iso
+  return `${agoText(at)}, ${new Date(at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`
+}
+
+// ---------------------------------------------------------------- התקנה
+
+function buildInstall(refresh: () => void): HTMLElement {
+  const box = el('div', { class: 'parent-section' })
+
+  box.appendChild(el('h2', { class: 'parent-h2', text: 'להתקין על המכשיר' }))
+  box.appendChild(
+    el('p', {
+      class: 'parent-note',
+      text: 'התקנה שמה את הטירה כאייקון במסך הבית, פותחת אותה במסך מלא בלי שורת כתובת, ומאפשרת לשחק גם בלי רשת - באוטו, בנסיעה או כשהאינטרנט נופל.',
+    }),
+  )
+
+  const status = el('p', { class: 'parent-sync-state', role: 'status' })
+
+  if (installed()) {
+    status.textContent = 'המשחק כבר מותקן על המכשיר הזה. 🎉'
+  } else if (isIos()) {
+    status.textContent = 'באייפון ובאייפד: כפתור השיתוף ⬆️ בתחתית המסך, ואז "הוסף למסך הבית". באייפון זה גם מגן על ההתקדמות - ספארי מוחק נתונים של אתרים שלא נכנסים אליהם שבוע, ואפליקציה במסך הבית פטורה מזה.'
+  } else if (installable()) {
+    status.textContent = 'הדפדפן מוכן להתקין. לחיצה אחת וזה שם.'
+  } else {
+    status.textContent = 'הדפדפן עוד לא הציע להתקין. לרוב זה מסתדר אחרי כמה שניות במשחק או אחרי רענון. בדפדפן שנפתח מתוך אפליקציה אחרת, למשל מקישור בוואטסאפ, אין התקנה בכלל - צריך לפתוח את הקישור בכרום או בספארי.'
+  }
+
+  if (!installed() && !isIos()) {
+    box.appendChild(
+      bigButton('להתקין את הטירה', () => {
+        void promptInstall().then((r) => {
+          status.textContent = r.message
+        })
+      }, { emoji: '📲', variant: 'sky' }),
+    )
+  }
+  box.appendChild(status)
+
+  box.appendChild(el('h2', { class: 'parent-h2', text: 'לשחק בלי רשת' }))
+  const offlineNote = el('p', { class: 'parent-note', role: 'status', text: 'בודק…' })
+  box.appendChild(offlineNote)
+
+  if (!offlinePossible()) {
+    offlineNote.textContent = 'מצב לא-מקוון דורש כתובת מאובטחת. בגרסה שרצה בפיתוח הוא כבוי, ובאתר עצמו הוא פועל.'
+  } else {
+    void cacheStatus().then((s) => {
+      offlineNote.textContent = s
+        ? `שמורים על המכשיר ${s.cached} מתוך ${s.total} קבצים.`
+        : 'המשחק עוד לא סיים להתכונן. אחרי רענון אחד זה יופיע כאן.'
+    })
+    box.appendChild(
+      bigButton('להוריד הכל עכשיו', () => {
+        offlineNote.textContent = 'מוריד…'
+        void downloadForOffline().then((r) => {
+          offlineNote.textContent = r.message
+        })
+      }, { emoji: '⬇️', variant: 'small ghost' }),
+    )
+    box.appendChild(
+      bigButton('לנקות ולהתחיל מחדש', () => {
+        offlineNote.textContent = 'מנקה ומרענן…'
+        void resetOffline()
+      }, { emoji: '🧹', variant: 'small ghost' }),
+    )
+    box.appendChild(
+      el('p', {
+        class: 'parent-note',
+        text: 'הניקוי מוחק רק את העותק השמור של המשחק ומרענן. ההתקדמות של דניאל לא נמצאת שם והיא לא נוגעת בה.',
+      }),
+    )
+  }
+
+  // ההצעה של הדפדפן עשויה להגיע דווקא כשהמסך הזה פתוח. בלי זה
+  // ההורה היה ממשיך לראות "עוד לא הציע" בזמן שהכפתור כבר אפשרי.
+  const stop = onInstallChange(() => {
+    stop()
+    // רק אם המסך הזה עדיין על המסך. הורה שיצא בינתיים לא אמור לגלות
+    // שהלשונית קופצת מתחת לאצבע שלו.
+    if (box.isConnected) refresh()
+  })
 
   return box
 }
