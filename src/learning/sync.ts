@@ -421,7 +421,13 @@ export function flushToServer(): void {
   const body = JSON.stringify(save)
   try {
     if (navigator.sendBeacon) {
-      navigator.sendBeacon(endpoint(config), new Blob([body], { type: 'application/json' }))
+      // text/plain ולא application/json, וזה לא פרט טכני קטן:
+      // sendBeacon לא יכול לבצע preflight, ולכן דפדפן חוסם בשקט מטען
+      // עם סוג תוכן שאינו אחד משלושת המותרים. השרת ממילא קורא את הגוף
+      // כטקסט ומפרש אותו כ-JSON, כך שהסוג המוצהר לא משנה לו - אבל
+      // הבחירה הלא נכונה כאן הייתה מפילה את הדחיפה האחרונה בכל יציאה,
+      // בלי שום שגיאה שאפשר לראות.
+      navigator.sendBeacon(endpoint(config), new Blob([body], { type: 'text/plain;charset=UTF-8' }))
       return
     }
   } catch {

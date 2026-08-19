@@ -277,6 +277,39 @@ try {
     await device.context.close()
   }
 
+  // ============================================ 3ב. הדחיפה ביציאה
+  //
+  // כשסוגרים לשונית fetch מבוטל, ולכן הסבב האחרון נשלח ב-sendBeacon.
+  // הבדיקה הזאת קיימת בגלל מלכודת שקטה: beacon לא יכול לבצע preflight,
+  // ולכן מטען עם סוג תוכן שאינו מהמותרים נחסם בלי שום שגיאה שרואים.
+  {
+    sync.cells.clear()
+    const device = await openDevice(browser, { save: fullSave(), sync: conf })
+    await openParentTab(device.page, 'סנכרון')
+    await pressSync(device.page, { url: endpoint, code: CODE })
+    const before = sync.cells.get(CODE)?.updatedAt
+
+    await device.page.evaluate(() => {
+      window.localStorage.setItem(
+        'dmec:v1',
+        JSON.stringify({ ...JSON.parse(window.localStorage.getItem('dmec:v1')), stars: 999 }),
+      )
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    let landed = false
+    for (let i = 0; i < 25; i++) {
+      const doc = sync.cells.get(CODE)
+      if (doc && doc.updatedAt !== before) {
+        landed = true
+        break
+      }
+      await device.page.waitForTimeout(200)
+    }
+    check('leaving the page pushes the last round to the server', landed)
+    await device.context.close()
+  }
+
   // ============================================ 4. כל כשלון מדבר עברית
   {
     const cases = [
