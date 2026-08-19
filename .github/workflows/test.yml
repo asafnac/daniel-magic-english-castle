@@ -40,8 +40,18 @@ jobs:
       - name: Build the sync server
         run: npm run build:server
 
+      # ראו את ההערה באותו שלב ב-deploy.yml: --with-deps מריץ apt-get,
+      # וזה מה שתקע פרסומים לחצי שעה. הספריות כבר קיימות בראנר.
+      - name: Cache the test browser
+        id: browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install a browser for the self test
-        run: npx playwright install --with-deps chromium
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
 
       - name: Self test
         run: npm test

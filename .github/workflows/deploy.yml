@@ -43,8 +43,22 @@ jobs:
       # הבדיקה העצמית רצה כאן ולא רק בזרימת הבדיקות הנפרדת, כדי
       # שמשימה שבורה לא תוכל להגיע לפרודקשן בזמן שהבדיקות עוד רצות
       # במקביל. עלות: כשתי דקות. תמורה: הדף שדניאל פותחת תמיד עובד.
+      # הדפדפן נשמר במטמון, ומותקן בלי --with-deps.
+      #
+      # השלב הזה תקע שני פרסומים ברצף לחצי שעה כל אחד. --with-deps מריץ
+      # apt-get על הראנר, וזה החלק שנתקע; ספריות המערכת שכרום צריך כבר
+      # מותקנות בתמונה של ubuntu-latest, שמגיעה עם דפדפנים מותקנים.
+      # המטמון חוסך גם את ההורדה עצמה בכל הרצה שאחרי הראשונה.
+      - name: Cache the test browser
+        id: browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install a browser for the self test
-        run: npx playwright install --with-deps chromium
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
 
       - name: Self test
         run: npm test
