@@ -6,7 +6,7 @@
 import { Castle } from '../game/Castle'
 import { AREA_LAYOUTS, HALF_WIDTH, SPAWN, areaAt, areaEntry } from '../game/layout'
 import { AREAS } from '../learning/areas'
-import { eraseEverything, freshSave, getProgress, type SaveData } from '../learning/progress'
+import { GAME_ID, eraseEverything, freshSave, getProgress, readLog, type SaveData } from '../learning/progress'
 import { bandOf, freshStat, masteryOf, urgencyOf, type ItemStat } from '../learning/mastery'
 import { mergeSaves } from '../learning/merge'
 import { PRACTICE_ROUND, PracticeSession, candidates, practiceAvailable } from '../learning/practiceSession'
@@ -376,6 +376,103 @@ function run(): void {
     const withList: SaveData = { ...freshSave(), lists: [{ id: 'l1', title: 'הכתבה', wordIds: ['cat'], created: 100, active: true }] }
     const afterDelete: SaveData = { ...freshSave(), lists: [], deletedLists: ['l1'] }
     check('a deleted list does not come back from the other device', mergeSaves(afterDelete, withList).lists.length === 0)
+  }
+
+  // ------------------------------------------- מכשיר ריק מול מכשיר מלא
+  //
+  // זה התרחיש שמחק ערב שלם של משחק בפרויקט האח, והוא היחיד כאן שנבדק
+  // בשני הסדרים ופעמיים. הסיפור: ההורה פותח את המשחק בטאבלט חדש,
+  // מקליד את הקוד, והמכשיר הריק מסנכרן ראשון. אם המיזוג לא מושלם,
+  // הריק דורס את המלא - והכל נעלם משני המכשירים גם יחד.
+  {
+    const full: SaveData = {
+      ...freshSave(),
+      stars: 210,
+      wordsLearned: ['cat', 'dog', 'fish', 'red'],
+      correct: 180,
+      mistakes: 20,
+      areas: { ...freshSave().areas, 'colors-garden': { unlocked: true, done: true, completedTasks: 12, stars: 40 } },
+      stats: { 'word:cat': { ...freshStat('word', 'cat'), seen: 9, correct: 8, streak: 4, bestStreak: 5, last: 8000, lastCorrect: 8000 } },
+      lists: [{ id: 'l9', title: 'הכתבה 12.3', wordIds: ['cat'], created: 700, active: true }],
+      log: [
+        { t: 1000, kind: 'area', id: 'colors-garden', correct: 10, total: 12 },
+        { t: 2000, kind: 'practice', id: 'free', correct: 7, total: 8 },
+      ],
+      revision: 90,
+    }
+    const blank = freshSave()
+
+    const worth = (s: SaveData): string =>
+      stableJson({
+        stars: s.stars,
+        correct: s.correct,
+        mistakes: s.mistakes,
+        words: s.wordsLearned.slice().sort(),
+        areas: s.areas,
+        stats: s.stats,
+        lists: s.lists,
+        log: s.log,
+      })
+    const richer = worth(full)
+
+    // ארבע הרצות: שני הסדרים, וכל אחד מהם פעמיים - כי כשלון שמופיע רק
+    // בסנכרון השני הוא בדיוק סוג הכשלון שנראה כמו "עבד ואז נמחק".
+    check('an empty device merging first does not wipe a full one', worth(mergeSaves(blank, full)) === richer)
+    check('a full device merging first keeps everything', worth(mergeSaves(full, blank)) === richer)
+    check('syncing the empty device a second time still keeps everything', worth(mergeSaves(blank, mergeSaves(blank, full))) === richer)
+    check('syncing the full device a second time still keeps everything', worth(mergeSaves(mergeSaves(full, blank), blank)) === richer)
+    check('the empty device ends up with the full history', mergeSaves(blank, full).log.length === 2)
+  }
+
+  // ------------------------------------------------------- יומן הפעילות
+  {
+    const base = freshSave()
+    check('a brand new save already has a log array', Array.isArray(base.log) && base.log.length === 0)
+    check('a brand new save says which game it is', base.game === GAME_ID)
+    check('the sync code is never part of the save', !('sync' in (base as unknown as Record<string, unknown>)))
+
+    const a: SaveData = {
+      ...freshSave(),
+      log: [
+        { t: 1000, kind: 'area', id: 'colors-garden', correct: 10, total: 12 },
+        { t: 3000, kind: 'practice', id: 'free', correct: 8, total: 8 },
+      ],
+    }
+    const b: SaveData = {
+      ...freshSave(),
+      log: [
+        { t: 1000, kind: 'area', id: 'colors-garden', correct: 10, total: 12 },
+        { t: 2000, kind: 'area', id: 'animals-yard', correct: 9, total: 12 },
+      ],
+    }
+    const merged = mergeSaves(a, b)
+    check('the same round from two devices stays one line', merged.log.length === 3, String(merged.log.length))
+    check('the log comes out in time order', merged.log.map((e) => e.t).join(',') === '1000,2000,3000')
+    check('merging logs in either order gives the same log', stableJson(merged.log) === stableJson(mergeSaves(b, a).log))
+    check('merging the log twice adds nothing', stableJson(mergeSaves(merged, b).log) === stableJson(merged.log))
+
+    // יומן ארוך נחתך, וחייב להיחתך אותו דבר בכל מכשיר - אחרת שני
+    // מכשירים יתכנסו לשתי תשובות שונות ויכתבו זה על זה לנצח.
+    const many = (from: number, count: number): SaveData => ({
+      ...freshSave(),
+      log: Array.from({ length: count }, (_, i) => ({ t: from + i, kind: 'practice' as const, id: 'free', correct: 8, total: 8 })),
+    })
+    const long = mergeSaves(many(1, 400), many(401, 400))
+    check('a very long log is capped', long.log.length === 300, String(long.log.length))
+    check('the cap keeps the newest rounds', long.log[long.log.length - 1].t === 800)
+    check('capping is the same in either order', stableJson(long.log) === stableJson(mergeSaves(many(401, 400), many(1, 400)).log))
+    check('a capped log is stable under another merge', stableJson(mergeSaves(long, many(1, 400)).log) === stableJson(long.log))
+
+    check('a broken log line is dropped and the rest survives', (() => {
+      const read = readLog([
+        { t: 5, kind: 'area', id: 'x', correct: 1, total: 2 },
+        null,
+        { t: 0, kind: 'area', id: 'x' },
+        { t: 6, kind: 'nonsense', id: 'x' },
+        { t: 7, kind: 'practice', id: 'free' },
+      ])
+      return read.length === 2 && read[1].total === 0
+    })())
   }
 
   // ---------------------------------------------------------- רשימות של ההורה

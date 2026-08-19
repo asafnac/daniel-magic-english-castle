@@ -8,7 +8,7 @@
 import { getArea, nextArea, type AreaDef } from './areas'
 import { createPracticeTask, createTask, trackedItems, type Task } from './questions'
 import { Lives } from './lives'
-import { addStars, areaProgress, markWordLearned, unlockArea, updateProgress } from './progress'
+import { addStars, appendLog, areaProgress, markWordLearned, unlockArea, updateProgress } from './progress'
 import { applyAnswer } from './mastery'
 import { nextDuePractice, recordMistake, recordSuccess, tickCooldowns } from './practice'
 
@@ -64,6 +64,8 @@ export class AreaSession implements TaskSession {
   private index = 0
   private practiceUsed = 0
   private completedReal = 0
+  /** כמה משימות נענו נכון בלי אף טעות. נרשם ביומן בסיום האזור. */
+  private firstTry = 0
   /** זוגות שכבר הותאמו במשימת התאמה. */
   private matched = new Set<string>()
 
@@ -171,6 +173,9 @@ export class AreaSession implements TaskSession {
 
   private onCorrect(): AnswerResult {
     const task = this.task
+    // "בפעם הראשונה" נספר רק כשלא נעשתה טעות במשימה הזאת. זה המספר
+    // היחיד שנרשם ביומן, כי הוא היחיד שמספר להורה משהו על הקושי.
+    if (!task.isPractice && this.lives.value === this.lives.max) this.firstTry += 1
     this.track(true)
     recordSuccess(task.wordId)
     markWordLearned(task.wordId)
@@ -249,6 +254,7 @@ export class AreaSession implements TaskSession {
     if (this.index < this.queue.length) return { areaCompleted: false }
 
     // האזור הסתיים.
+    appendLog({ kind: 'area', id: this.area.id, correct: this.firstTry, total: this.area.tasks.length })
     addStars(STARS_AREA_BONUS, this.area.id)
     updateProgress((d) => {
       const a = d.areas[this.area.id]

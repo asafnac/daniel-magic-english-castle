@@ -35,8 +35,14 @@ const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN ?? '*'
 /** גבול גודל גוף הבקשה. שמירה אמיתית היא עשרות קילובייט. */
 const MAX_BODY = 2 * 1024 * 1024
 
-/** קוד משפחה תקין. אורך מינימלי כדי שלא יהיה אפשר לנחש אותו. */
-const CODE_RE = /^[A-Z0-9-]{10,64}$/
+/**
+ * קוד משפחה תקין.
+ *
+ * זהה בדיוק לביטוי שבוורקר של Cloudflare, כדי ששני השרתים יקבלו
+ * וידחו את אותם קודים. קוד שעובד באחד ונדחה בשני הוא בדיוק סוג
+ * ההפתעה שקשה לאבחן מול טאבלט.
+ */
+const CODE_RE = /^[A-Za-z0-9_-]{16,64}$/
 
 // ------------------------------------------------------------ הגבלת קצב
 
@@ -69,10 +75,21 @@ function fileFor(code: string): string {
   return join(DATA_DIR, `${hash}.json`)
 }
 
-async function readSave(code: string): Promise<Record<string, unknown> | null> {
+/**
+ * המסמך השמור, תמיד בצורה { save, updatedAt }.
+ *
+ * קובץ שנכתב בגרסה קודמת מכיל את השמירה עצמה בשורש. הוא נקרא כאן
+ * ומועטף, כדי שקובץ ישן על הדיסק לא ייראה פתאום כמו תא ריק - כלומר
+ * כמו התקדמות שנמחקה.
+ */
+async function readSave(code: string): Promise<{ save: unknown; updatedAt: string | null } | null> {
   try {
     const raw = await readFile(fileFor(code), 'utf8')
-    return JSON.parse(raw) as Record<string, unknown>
+    const doc = JSON.parse(raw) as Record<string, unknown>
+    if (doc && typeof doc === 'object' && 'save' in doc) {
+      return { save: doc.save, updatedAt: typeof doc.updatedAt === 'string' ? doc.updatedAt : null }
+    }
+    return { save: doc, updatedAt: null }
   } catch {
     return null
   }
@@ -146,25 +163,25 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     return
   }
 
-  const match = /^\/save\/([^/]+)$/.exec(url.pathname)
-  if (!match) {
+  // הקוד מגיע כפרמטר שאילתה, בדיוק כמו בוורקר. הצורה הישנה
+  // /save/<code> ממשיכה לעבוד, כדי שמכשיר עם גרסה ישנה של המשחק
+  // לא יישאר בחוץ עד שירענן.
+  const fromPath = /^\/save\/([^/]+)$/.exec(url.pathname)
+  const code = (url.searchParams.get('code') ?? (fromPath ? decodeURIComponent(fromPath[1]) : '')).trim()
+  if (!code) {
     send(res, 404, { error: 'not found' })
     return
   }
-
-  const code = decodeURIComponent(match[1]).toUpperCase()
   if (!CODE_RE.test(code)) {
     send(res, 400, { error: 'bad code' })
     return
   }
 
   if (method === 'GET') {
-    const save = await readSave(code)
-    if (!save) {
-      send(res, 404, { error: 'no save yet' })
-      return
-    }
-    send(res, 200, save)
+    const stored = await readSave(code)
+    // תא ריק אינו שגיאה: זה בדיוק מה שרואים במכשיר הראשון שמתחבר,
+    // ו-404 כאן היה נראה ללקוח כמו תקלה במקום כמו "עוד אין כלום".
+    send(res, 200, { save: stored?.save ?? null, updatedAt: stored?.updatedAt ?? null })
     return
   }
 
@@ -178,8 +195,10 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       send(res, 400, { error: 'bad json' })
       return
     }
-    if (!incoming || typeof incoming !== 'object' || typeof incoming.version !== 'number') {
-      send(res, 400, { error: 'not a save' })
+    // אותה בדיקה של הוורקר: שמירה בלי יומן היא לקוח שבור, ולקוח שבור
+    // לא יקבל את ההזדמנות למחוק שנה של היסטוריה בבקשה אחת.
+    if (!incoming || typeof incoming !== 'object' || typeof incoming.version !== 'number' || !Array.isArray(incoming.log)) {
+      send(res, 400, { error: 'not a game save' })
       return
     }
 
@@ -188,17 +207,19 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     // זה נראה מיותר כי הלקוח כבר ממזג, אבל זה בדיוק המקום שבו נתונים
     // הולכים לאיבוד: אם ה-iPad והטלפון דוחפים בהפרש של שנייה, הדחיפה
     // השנייה מבוססת על תמונה ישנה. מיזוג כאן הופך את זה ללא נורא.
-    const existing = await readSave(code)
+    const stored = await readSave(code)
+    const existing = stored?.save as Record<string, unknown> | undefined
     const merged = existing && existing.version === incoming.version
       ? (mergeSaves(incoming as never, existing as never) as unknown as Record<string, unknown>)
       : incoming
 
-    // הגדרות הסנכרון של המכשיר לא נשמרות בשרת. אין שום סיבה שהשרת
-    // יחזיק עותק של הקוד שלו בתוך המסמך.
+    // גרסאות ישנות של המשחק החזיקו את הגדרות הסנכרון בתוך השמירה.
+    // אין שום סיבה שהשרת יחזיק עותק של הקוד שפותח אותו.
     delete merged.sync
 
-    await writeSave(code, merged)
-    send(res, 200, merged)
+    const updatedAt = new Date().toISOString()
+    await writeSave(code, { save: merged, updatedAt })
+    send(res, 200, { ok: true, updatedAt })
     return
   }
 
