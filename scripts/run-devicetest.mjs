@@ -456,6 +456,42 @@ try {
     check('a second press on a spent offer does not break', hebrew(twice) && cancel.errors.length === 0, `${twice.slice(0, 60)} ${cancel.errors.join('|')}`)
     await cancel.context.close()
 
+    // 8ד2. הבדיקה שמסבירה למה אי אפשר להתקין
+    //
+    // נבנתה אחרי שהתקנה נכשלה על טאבלט אמיתי ואבחון מרחוק היה ניחוש.
+    // שלושת המקרים כאן הם השלושה שקורים בפועל.
+    for (const [name, ua, expect] of [
+      ['android chrome', undefined, 'כרום'],
+      [
+        'an ipad',
+        'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0 Mobile/15E148 Safari/604.1',
+        'רק ספארי',
+      ],
+      [
+        'a whatsapp in-app browser',
+        'Mozilla/5.0 (Linux; Android 13; SM-X200 Build/TP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0.0.0 Safari/537.36',
+        'דפדפן פנימי',
+      ],
+    ]) {
+      const ctx = await browser.newContext(ua ? { userAgent: ua } : {})
+      const page = await ctx.newPage()
+      const errs = []
+      page.on('pageerror', (e) => errs.push(String(e)))
+      await page.goto(SITE(), { waitUntil: 'load' })
+      await openParentTab(page, 'התקנה')
+      await page.getByRole('button', { name: 'לבדוק למה אי אפשר להתקין' }).click()
+      const report = page.locator('.parent-compare')
+      await report.locator('.parent-compare-line').first().waitFor({ timeout: 15000 })
+      // ממתינים לשורה האחרונה, שמגיעה רק אחרי שהאייקונים נטענו
+      await page.waitForTimeout(1500)
+      const text = (await report.textContent()) ?? ''
+      check(`the install check explains ${name}`, text.includes(expect), text.slice(0, 140))
+      check(`the install check finds no fault of ours on ${name}`, !text.includes('זו תקלה אצלי'), text.slice(0, 200))
+      check(`the install check confirms the icons on ${name}`, text.includes('האייקונים נטענים'), text.slice(0, 200))
+      check(`the install check does not throw on ${name}`, errs.length === 0, errs.join(' | '))
+      await ctx.close()
+    }
+
     // 8ה. כבר מותקן
     const installed = await browser.newContext()
     await installed.addInitScript(() => {

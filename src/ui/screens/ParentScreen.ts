@@ -29,6 +29,7 @@ import {
   testConnection,
 } from '../../learning/sync'
 import { syncConfigured } from '../../learning/syncConfig'
+import { diagnoseInstall, manualInstallHint } from '../../app/installCheck'
 import {
   cacheStatus,
   downloadForOffline,
@@ -578,11 +579,11 @@ function buildInstall(refresh: () => void): HTMLElement {
   if (installed()) {
     status.textContent = 'המשחק כבר מותקן על המכשיר הזה. 🎉'
   } else if (isIos()) {
-    status.textContent = 'באייפון ובאייפד: כפתור השיתוף ⬆️ בתחתית המסך, ואז "הוסף למסך הבית". באייפון זה גם מגן על ההתקדמות - ספארי מוחק נתונים של אתרים שלא נכנסים אליהם שבוע, ואפליקציה במסך הבית פטורה מזה.'
+    status.textContent = 'באייפון ובאייפד ההתקנה ידנית, ורק דרך ספארי. באייפון זה גם מגן על ההתקדמות - ספארי מוחק נתונים של אתרים שלא נכנסים אליהם שבוע, ואפליקציה במסך הבית פטורה מזה.'
   } else if (installable()) {
     status.textContent = 'הדפדפן מוכן להתקין. לחיצה אחת וזה שם.'
   } else {
-    status.textContent = 'הדפדפן עוד לא הציע להתקין. לרוב זה מסתדר אחרי כמה שניות במשחק או אחרי רענון. בדפדפן שנפתח מתוך אפליקציה אחרת, למשל מקישור בוואטסאפ, אין התקנה בכלל - צריך לפתוח את הקישור בכרום או בספארי.'
+    status.textContent = 'הדפדפן עוד לא הציע להתקין. אפשר להתקין ידנית מהתפריט שלו, וזה עובד תמיד.'
   }
 
   if (!installed() && !isIos()) {
@@ -595,6 +596,40 @@ function buildInstall(refresh: () => void): HTMLElement {
     )
   }
   box.appendChild(status)
+
+  // הדרך הידנית מוצגת תמיד ולא כנפילה לאחור, כי היא זו שעובדת בכל
+  // מקרה: היא לא תלויה בהצעה שכרום שולח מתי שבא לו, והיא הדרך
+  // היחידה שקיימת באייפד.
+  if (!installed()) {
+    box.appendChild(el('p', { class: 'parent-note strong', text: manualInstallHint() }))
+  }
+
+  // כשההתקנה לא עובדת, "הדפדפן לא הציע" הוא לא הסבר. הכפתור הזה
+  // בודק על המכשיר הזה מה בדיוק חסר, ואומר את זה בעברית.
+  if (!installed()) {
+    const report = el('div', { class: 'parent-compare', role: 'status' })
+    box.appendChild(
+      bigButton('לבדוק למה אי אפשר להתקין', () => {
+        clear(report)
+        report.appendChild(el('p', { class: 'parent-note', text: 'בודק…' }))
+        void diagnoseInstall(installable()).then((lines) => {
+          clear(report)
+          for (const line of lines) {
+            report.appendChild(
+              el('p', { class: 'parent-compare-line' }, [
+                el('span', { class: 'parent-compare-label', text: line.ok === true ? '✅' : line.ok === false ? '❌' : 'ℹ️' }),
+                el('span', { class: 'parent-compare-value' }, [
+                  el('strong', { text: `${line.label}: ` }),
+                  el('span', { text: line.detail }),
+                ]),
+              ]),
+            )
+          }
+        })
+      }, { emoji: '🔎', variant: 'small ghost' }),
+    )
+    box.appendChild(report)
+  }
 
   box.appendChild(el('h2', { class: 'parent-h2', text: 'לשחק בלי רשת' }))
   const offlineNote = el('p', { class: 'parent-note', role: 'status', text: 'בודק…' })

@@ -16,6 +16,8 @@
  * היא מה שמגן על ההתקדמות של דניאל.
  */
 
+import { isIosDevice } from './installCheck'
+
 /** האירוע שהדפדפן שולח כשהוא מוכן להתקין. אינו בטיפוסים הסטנדרטיים. */
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -99,13 +101,15 @@ export function installed(): boolean {
   }
 }
 
-/** אייפון ואייפד: אין אירוע התקנה, יש הוראה ידנית. */
+/**
+ * אייפון ואייפד: אין אירוע התקנה, יש הוראה ידנית.
+ *
+ * הזיהוי עצמו יושב ב-installCheck.ts ולא כאן, כדי שלא יהיו שתי
+ * גרסאות שנפרדות זו מזו: הבדיקה שמסבירה למה אי אפשר להתקין חייבת
+ * להסכים עם הקוד שמחליט אם בכלל להציג כפתור.
+ */
 export function isIos(): boolean {
-  const ua = navigator.userAgent || ''
-  const iosLike = /iPad|iPhone|iPod/.test(ua)
-  // אייפד חדש מציג את עצמו כמק. מסך מגע הוא מה שמבדיל.
-  const iPadOs = /Macintosh/.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1
-  return iosLike || iPadOs
+  return isIosDevice()
 }
 
 /**
