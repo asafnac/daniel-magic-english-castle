@@ -30,6 +30,8 @@ export type TaskType =
   // ---------- משימות הקריאה ----------
   /** שומעים צליל בודד ובוחרים את האות שמייצגת אותו. */
   | 'sound-to-letter'
+  /** שומעים צליל ובוחרים את התמונה שהמילה שלה מתחילה בו. */
+  | 'first-sound'
   /** שומעים מילה מפורקת לצלילים ובוחרים את התמונה. שרשור באוזן. */
   | 'sound-out'
   /** בונים את המילה מאריחי צליל. הפקה, לא בחירה מרשימה. */
@@ -48,7 +50,7 @@ export type TaskType =
   | 'say-contrast'
 
 /** סוגי המשימות שמלמדים לקרוא ולא רק לזהות בשמיעה. */
-export const PHONICS_TYPES: readonly TaskType[] = ['sound-to-letter', 'sound-out', 'blend-build', 'read-word']
+export const PHONICS_TYPES: readonly TaskType[] = ['sound-to-letter', 'first-sound', 'sound-out', 'blend-build', 'read-word']
 
 export function isPhonicsType(type: TaskType): boolean {
   return PHONICS_TYPES.includes(type)
@@ -500,6 +502,72 @@ function makeSoundToLetter(areaId: string, spec: AreaTaskSpec, word: Word): Task
   }
 }
 
+/**
+ * איזו תמונה מתחילה בצליל הזה.
+ *
+ * זו בדיוק השאלה שדפי העבודה של בית הספר שואלים: "צבעי את התמונות
+ * שמתחילות באות i". בנוי כאן במכוון כמו הדף ולא כגרסה משופרת שלו -
+ * דניאל תיבחן על הדף, ומשימה שמתרגלת משהו דומה אבל אחר לא תעזור לה
+ * ברגע האמת.
+ *
+ * שלושה הבדלים מהדף, וכולם לטובה:
+ * הצליל **נשמע** ולא רק נראה, כי צליל הוא דבר שבמהותו שומעים.
+ * לכל תמונה יש תווית בעברית, כי דף שמצייר סביבון ומצפה שהילדה תזהה
+ * אותו הופך שאלה על צליל לחידת ציור.
+ * ויש רמזים: הצליל שוב, ואז המילה עצמה.
+ */
+function makeFirstSound(areaId: string, spec: AreaTaskSpec, word: Word): Task {
+  const phoneme = getPhoneme(spec.phoneme ?? word.firstSound ?? '')
+  const distractors = resolveFirstSoundDistractors(word, phoneme, spec, 3)
+  const options: TaskOption[] = shuffle([
+    { id: word.id, correct: true, emoji: word.emoji, label: word.hebrew, english: word.english },
+    ...distractors.map((d) => ({ id: d.id, correct: false, emoji: d.emoji, label: d.hebrew, english: d.english })),
+  ])
+  return {
+    key: nextKey(areaId, spec.type),
+    type: 'first-sound',
+    areaId,
+    wordId: word.id,
+    promptHe: `איזו תמונה מתחילה בצליל של האות ${phoneme.grapheme.toUpperCase()}?`,
+    phonemeId: phoneme.id,
+    soundScript: [phoneme.say],
+    // האות מוצגת בגדול, כמו בראש הדף. אין כאן מילה כתובה לפענוח,
+    // ולכן זו תצוגה ולא משימת קריאה.
+    stimulus: { emoji: `${phoneme.grapheme.toUpperCase()}${phoneme.grapheme}`, repeat: 1 },
+    options,
+    feedbackEmoji: word.emoji,
+    hints: [
+      `בואי נשמע את הצליל שוב 👂 ${phoneme.hebrew}`,
+      `רמז: אחת מהן היא ${word.hebrew}. איך אומרים אותה באנגלית?`,
+      'השארתי לך רק שתי תמונות 💛',
+    ],
+  }
+}
+
+/**
+ * הסחות דעת למשימת הצליל הפותח.
+ *
+ * חייבות להתחיל בצליל **אחר**, אחרת יש יותר מתשובה אחת נכונה. זה
+ * נשמע מובן מאליו, וזה בדיוק סוג הדבר ששובר משימה בשקט: ילדה שבחרה
+ * נכון ונענתה "לא" לומדת בדיוק את ההפך ממה שרצינו.
+ */
+function resolveFirstSoundDistractors(word: Word, phoneme: Phoneme, spec: AreaTaskSpec, count: number): Word[] {
+  if (spec.distractors && spec.distractors.length > 0) {
+    return spec.distractors.map((id) => getWord(id)).filter((w) => w.firstSound !== phoneme.id)
+  }
+  const pool = WORDS.filter(
+    (w) =>
+      w.id !== word.id &&
+      w.firstSound !== undefined &&
+      w.firstSound !== phoneme.id &&
+      // אותו אימוג'י בשתי אפשרויות נראה כמו תקלה, וגם מבלבל.
+      w.emoji !== word.emoji &&
+      w.category !== 'grammar' &&
+      w.category !== 'contrast',
+  )
+  return shuffle(pool).slice(0, count)
+}
+
 /** שומעים את המילה מפורקת לצלילים ובוחרים תמונה. שרשור באוזן, בלי כתב. */
 function makeSoundOut(areaId: string, spec: AreaTaskSpec, word: Word): Task {
   const target = getDecodable(word.id)
@@ -692,6 +760,10 @@ export function trackedItems(task: Task): { kind: 'word' | 'sound' | 'frame'; id
 
   if (task.phonemeId) {
     out.push({ kind: 'sound', id: task.phonemeId })
+    // הצליל הפותח הוא המשימה היחידה שמלמדת שני דברים בבת אחת: את
+    // הצליל, ואת המילה שמתחילה בו. רישום שניהם הוא מה שמאפשר למסך
+    // ההורים לענות על "היא מתבלבלת בצליל, או שהיא לא מכירה את המילה".
+    if (task.type === 'first-sound') out.push({ kind: 'word', id: task.wordId })
     return out
   }
 
@@ -801,6 +873,8 @@ export function createTask(areaId: string, spec: AreaTaskSpec): Task {
       return makeSayIt(areaId, spec, word)
     case 'sound-to-letter':
       return makeSoundToLetter(areaId, spec, word)
+    case 'first-sound':
+      return makeFirstSound(areaId, spec, word)
     case 'sound-out':
       return makeSoundOut(areaId, spec, word)
     case 'blend-build':
@@ -834,9 +908,13 @@ export function createPracticeTask(
   // קריאה שם הייתה מבקשת ממנה משהו שאף אחד עוד לא לימד אותה.
   // התרגול החופשי קובע בעצמו, לפי מה שכבר סיימה בטירה.
   const readingArea = opts.allowReading ?? findArea(areaId)?.phonicsSet !== undefined
+  // מילה עם צליל פותח ידוע מתורגלת גם דרך השאלה של דף העבודה. היא
+  // נשארת ברשימה גם עם משימות אחרות, כי מילה שמופיעה תמיד באותה
+  // שאלה נלמדת בתור התשובה לשאלה הזאת ולא בתור מילה.
+  const firstSoundTypes: TaskType[] = word.firstSound ? ['first-sound'] : []
   const candidates: TaskType[] =
     readingArea && Array.isArray(word.sounds) && word.sounds.length > 0
-      ? ['read-word', 'blend-build', 'sound-out']
+      ? ['read-word', 'blend-build', 'sound-out', ...firstSoundTypes]
       : word.category === 'letters'
       ? ['letter-sound']
       : word.category === 'numbers'
@@ -847,12 +925,13 @@ export function createPracticeTask(
             ? ['phrase-match', 'say-it']
             : word.sizeHint
               ? ['size-pick', 'say-it']
-              : ['listen-pick-image', 'two-words', 'say-it']
+              : ['listen-pick-image', 'two-words', 'say-it', ...firstSoundTypes]
 
   const usable = candidates.filter((t) => t !== avoidType)
   const type = (usable.length > 0 ? usable : candidates)[Math.floor(Math.random() * (usable.length > 0 ? usable.length : candidates.length))]
 
   const spec: AreaTaskSpec = { type, word: wordId }
+  if (type === 'first-sound') spec.phoneme = word.firstSound
   const task = createTask(areaId, spec)
   task.isPractice = true
   return task

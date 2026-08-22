@@ -1395,3 +1395,15 @@
 .title-parent-link:focus-visible {
   color: var(--purple);
 }
+
+/* דפי האותיות המוכנים: שורה של כפתורים קצרים, לא רשימה אנכית */
+.parent-sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0 4px;
+}
+
+.parent-sets .big-btn {
+  flex: 0 1 auto;
+}

@@ -42,6 +42,7 @@ import {
   resetOffline,
 } from '../../app/offline'
 import { findWord } from '../../learning/vocabulary'
+import { SCHOOL_SETS, addSchoolSet } from '../../learning/schoolSets'
 import { createList, deleteList, parseWordList, setListActive } from '../../learning/wordbank'
 import { bigButton, clear, el } from '../dom'
 
@@ -337,7 +338,36 @@ function buildLists(refresh: () => void): HTMLElement {
   const save = getProgress()
   const box = el('div', { class: 'parent-section' })
 
-  box.appendChild(el('h2', { class: 'parent-h2', text: 'רשימת מילים מבית הספר' }))
+  // דפי האותיות מוכנים מראש, לפני תיבת ההקלדה ולא אחריה: זה המסלול
+  // שיהיה בשימוש בפועל. הקלדת שבע מילים עם תרגום על טאבלט היא בדיוק
+  // מה שגורם לכך שדף עבודה פשוט לא נכנס למשחק.
+  box.appendChild(el('h2', { class: 'parent-h2', text: 'דפי האותיות מבית הספר' }))
+  box.appendChild(
+    el('p', {
+      class: 'parent-note',
+      text: 'לחיצה אחת מוסיפה את כל המילים של הדף. דניאל תתרגל אותן גם כמילים וגם בשאלה שהדף שואל: איזו תמונה מתחילה בצליל הזה.',
+    }),
+  )
+
+  const added = new Set(save.lists.map((l) => l.title))
+  const sets = el('div', { class: 'parent-sets' })
+  for (const set of SCHOOL_SETS) {
+    const already = added.has(set.title)
+    const btn = bigButton(
+      already ? `${set.letter} · נוסף` : `${set.letter} · ${set.words.length} מילים`,
+      () => {
+        if (already) return
+        addSchoolSet(set)
+        refresh()
+      },
+      { emoji: already ? '✅' : '➕', variant: already ? 'small ghost' : 'small sky' },
+    )
+    if (already) btn.disabled = true
+    sets.appendChild(btn)
+  }
+  box.appendChild(sets)
+
+  box.appendChild(el('h2', { class: 'parent-h2', text: 'רשימת מילים משלך' }))
   box.appendChild(
     el('p', {
       class: 'parent-note',

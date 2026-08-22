@@ -304,16 +304,18 @@ export class TaskPanel {
 
   /** כפתור שמשרשר את הצלילים לאט. הפיגום המרכזי של הקריאה. */
   private buildSoundReplay(task: Task): HTMLElement {
+    // צליל אחד אינו "צלילים". ילדה בת שמונה קוראת את המשפט הזה.
+    const single = (task.soundScript ?? []).length === 1
     const row = el('div', { class: 'task-replay sounds' })
     const btn = el('button', {
       class: 'speaker-btn sounds',
       type: 'button',
       text: '🔤',
-      ariaLabel: 'להשמיע את הצלילים אחד אחד',
+      ariaLabel: single ? 'להשמיע את הצליל' : 'להשמיע את הצלילים אחד אחד',
     })
     btn.addEventListener('click', () => this.sayTheSounds(task.soundScript ?? [], btn))
     row.appendChild(btn)
-    row.appendChild(el('span', { class: 'task-replay-label', text: 'לשמוע את הצלילים אחד אחד' }))
+    row.appendChild(el('span', { class: 'task-replay-label', text: single ? 'לשמוע את הצליל' : 'לשמוע את הצלילים אחד אחד' }))
     return row
   }
 
@@ -673,7 +675,10 @@ export class TaskPanel {
       // תווית בעברית רק שם שבו התפיסה עצמה היא המחסום: צבע, שאותו ילדה
       // עם עיוורון צבעים לא תבחין בו, וגודל, שהוא מושג מופשט שכדאי לעגן
       // בעברית. בסצנות של משפטים התמונה חד משמעית, ותווית רק תעמיס אותה.
-      const needsLabel = !!opt.color || !!opt.scale
+      // במשימת הצליל הפותח התווית חובה: הילדה צריכה לדעת מה התמונה
+      // כדי לחשוב על המילה באנגלית שלה. בלי התווית, שאלה על צליל
+      // הופכת לחידה על ציור, וזה בדיוק החיסרון של דף העבודה המודפס.
+      const needsLabel = !!opt.color || !!opt.scale || task.type === 'first-sound'
       if (needsLabel && opt.label) btn.appendChild(el('span', { class: 'option-label', text: opt.label }))
       if (showEnglish && opt.english) btn.appendChild(el('span', { class: 'option-english', text: opt.english }))
 
