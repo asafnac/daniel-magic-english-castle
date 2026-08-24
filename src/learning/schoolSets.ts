@@ -66,6 +66,15 @@ export const SCHOOL_SETS: SchoolSet[] = [
     words: ['tiger', 'tooth', 'turtle', 'tie', 'tree', 'tomato', 'train'],
   },
   {
+    id: 'letter-p',
+    letter: 'Pp',
+    phoneme: 'p',
+    title: 'דף האות Pp',
+    // הדלי והכדור שעל הדף הם הסחות דעת מכוונות של המורה, ולכן הם לא
+    // כאן: הם לא מתחילים ב-p. עט וסיכה נוספו מהמאגר להשלמת הדף.
+    words: ['pizza', 'pig', 'panda', 'pencil', 'popcorn', 'pen', 'pin'],
+  },
+  {
     id: 'letter-e',
     letter: 'Ee',
     phoneme: 'e',

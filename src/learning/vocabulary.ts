@@ -192,8 +192,8 @@ export const WORDS: Word[] = [
 
   // ---------- Jet 3: בית הספר ----------
   { id: 'bag', english: 'bag', hebrew: 'תיק', category: 'school', difficulty: 1, emoji: '🎒', audioKey: 'bag', sounds: ['b','a','g'] },
-  { id: 'pen', english: 'pen', hebrew: 'עט', category: 'school', difficulty: 2, emoji: '🖊️', audioKey: 'pen', sounds: ['p','e','n'] },
-  { id: 'pencil', english: 'pencil', hebrew: 'עיפרון', category: 'school', difficulty: 2, emoji: '✏️', audioKey: 'pencil' },
+  { id: 'pen', english: 'pen', hebrew: 'עט', category: 'school', difficulty: 2, emoji: '🖊️', audioKey: 'pen', sounds: ['p','e','n'], firstSound: 'p' },
+  { id: 'pencil', english: 'pencil', hebrew: 'עיפרון', category: 'school', difficulty: 2, emoji: '✏️', audioKey: 'pencil', firstSound: 'p' },
   { id: 'teacher', english: 'teacher', hebrew: 'מורה', category: 'school', difficulty: 2, emoji: '👩‍🏫', audioKey: 'teacher' },
   { id: 'classroom', english: 'classroom', hebrew: 'כיתה', category: 'school', difficulty: 3, emoji: '🏫', audioKey: 'classroom' },
   { id: 'sit', english: 'sit', hebrew: 'לשבת', category: 'school', difficulty: 2, emoji: '🪑', audioKey: 'sit', sounds: ['s','i','t'] },
@@ -214,8 +214,8 @@ export const WORDS: Word[] = [
 
   // צלילי קבוצה 1: s a t p i n
   { id: 'ant', english: 'ant', hebrew: 'נמלה', category: 'sounds', difficulty: 1, emoji: '🐜', sounds: ['a', 'n', 't'] },
-  { id: 'pin', english: 'pin', hebrew: 'סיכה', category: 'sounds', difficulty: 1, emoji: '📌', sounds: ['p', 'i', 'n'] },
-  { id: 'pan', english: 'pan', hebrew: 'מחבת', category: 'sounds', difficulty: 1, emoji: '🍳', sounds: ['p', 'a', 'n'] },
+  { id: 'pin', english: 'pin', hebrew: 'סיכה', category: 'sounds', difficulty: 1, emoji: '📌', sounds: ['p', 'i', 'n'], firstSound: 'p' },
+  { id: 'pan', english: 'pan', hebrew: 'מחבת', category: 'sounds', difficulty: 1, emoji: '🍳', sounds: ['p', 'a', 'n'], firstSound: 'p' },
   { id: 'tap', english: 'tap', hebrew: 'ברז', category: 'sounds', difficulty: 1, emoji: '🚰', sounds: ['t', 'a', 'p'] },
   { id: 'nap', english: 'nap', hebrew: 'תנומה', category: 'sounds', difficulty: 1, emoji: '😴', sounds: ['n', 'a', 'p'] },
   { id: 'tin', english: 'tin', hebrew: 'פחית', category: 'sounds', difficulty: 1, emoji: '🥫', sounds: ['t', 'i', 'n'] },
@@ -227,7 +227,7 @@ export const WORDS: Word[] = [
   { id: 'man', english: 'man', hebrew: 'איש', category: 'sounds', difficulty: 1, emoji: '👨', sounds: ['m', 'a', 'n'] },
   { id: 'cap', english: 'cap', hebrew: 'כובע מצחייה', category: 'sounds', difficulty: 1, emoji: '🧢', sounds: ['c', 'a', 'p'] },
   { id: 'kid', english: 'kid', hebrew: 'ילדה', category: 'sounds', difficulty: 1, emoji: '🧒', sounds: ['k', 'i', 'd'] },
-  { id: 'pig', english: 'pig', hebrew: 'חזיר', category: 'sounds', difficulty: 1, emoji: '🐷', sounds: ['p', 'i', 'g'] },
+  { id: 'pig', english: 'pig', hebrew: 'חזיר', category: 'sounds', difficulty: 1, emoji: '🐷', sounds: ['p', 'i', 'g'], firstSound: 'p' },
   { id: 'dig', english: 'dig', hebrew: 'לחפור', category: 'sounds', difficulty: 1, emoji: '⛏️', sounds: ['d', 'i', 'g'] },
 
   // צלילי קבוצה 3: e u r h b f l
@@ -330,6 +330,11 @@ export const WORDS: Word[] = [
   { id: 'tie', english: 'tie', hebrew: 'עניבה', category: 'objects', difficulty: 2, emoji: '👔', firstSound: 't' },
   { id: 'tomato', english: 'tomato', hebrew: 'עגבנייה', category: 'food', difficulty: 2, emoji: '🍅', firstSound: 't' },
   { id: 'train', english: 'train', hebrew: 'רכבת', category: 'objects', difficulty: 1, emoji: '🚂', firstSound: 't' },
+
+  // Pp
+  { id: 'pizza', english: 'pizza', hebrew: 'פיצה', category: 'food', difficulty: 1, emoji: '🍕', firstSound: 'p' },
+  { id: 'panda', english: 'panda', hebrew: 'פנדה', category: 'animals', difficulty: 2, emoji: '🐼', firstSound: 'p' },
+  { id: 'popcorn', english: 'popcorn', hebrew: 'פופקורן', category: 'food', difficulty: 2, emoji: '🍿', firstSound: 'p' },
 
   // Ee
   { id: 'elephant', english: 'elephant', hebrew: 'פיל', category: 'animals', difficulty: 2, emoji: '🐘', firstSound: 'e' },
