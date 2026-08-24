@@ -20,6 +20,7 @@ import { AreaSession, type TaskSession } from '../learning/session'
 import { Lives } from '../learning/lives'
 import { WORDS, findWord, getWord } from '../learning/vocabulary'
 import { TaskPanel } from '../ui/components/TaskPanel'
+import { buildTitleScreen } from '../ui/screens/TitleScreen'
 import '../styles/base.css'
 import '../styles/screens.css'
 import '../styles/task.css'
@@ -382,6 +383,53 @@ function run(): void {
         check(`first-sound ${wordId}: the word is tracked too`, trackedItems(task).some((i) => i.kind === 'word' && i.id === wordId))
       }
     }
+  }
+
+  // ------------------------------------------- הדרך אל התרגול ממסך הפתיחה
+  //
+  // נבנה אחרי שדניאל שיחקה שבוע וצברה אפס כוכבים: היא נכנסה, טיילה
+  // בעולם התלת-ממדי, ולא הגיעה לאף משימה. התרגול היה קיים רק בתפריט
+  // שנפתח מתוך העולם, פריט שני מתוך שמונה. זה קיים, וזה לא נמצא.
+  {
+    eraseEverything()
+    let practiceRequested = 0
+    const deps = {
+      onStart: () => {},
+      onPractice: () => (practiceRequested += 1),
+      onCustomize: () => {},
+      onProgress: () => {},
+      onSettings: () => {},
+      onParent: () => {},
+    }
+
+    // בלי שום דבר לתרגל אין כפתור, כי כפתור שאומר "אין מה לתרגל"
+    // מלמד לא ללחוץ עליו.
+    const empty = buildTitleScreen(deps)
+    const practiceButton = (host: HTMLElement): HTMLButtonElement | null =>
+      Array.from(host.querySelectorAll<HTMLButtonElement>('.big-btn')).find((b) => (b.textContent ?? '').includes('תרגול קסום')) ?? null
+    check('a fresh game offers no practice button', practiceButton(empty) === null)
+
+    // דף אותיות שההורה הוסיף מספיק כדי שיהיה מה לתרגל, גם לפני
+    // שדניאל פתחה משימה אחת. זה בדיוק המצב שבו היא נמצאת.
+    const listId = addSchoolSet(SCHOOL_SETS[1])
+    check('adding a school sheet gives the practice engine something to do', practiceAvailable() > 0, String(practiceAvailable()))
+    const withList = buildTitleScreen(deps)
+    const btn = practiceButton(withList)
+    check('the opening screen offers practice once a sheet is added', !!btn)
+    btn?.click()
+    check('pressing it asks for a practice round', practiceRequested === 1)
+
+    // והסבב שנפתח באמת מכיל את מילות הדף
+    const round = new PracticeSession()
+    check('the round is not empty', !round.isEmpty)
+    const sheetWords = new Set(SCHOOL_SETS[1].words)
+    check(
+      'the round practises the words from the sheet',
+      round.task !== undefined && sheetWords.has(round.task.wordId),
+      round.task?.wordId ?? 'none',
+    )
+    deleteList(listId)
+    eraseEverything()
   }
 
   // ---------------------------------------------------------- מיזוג בין מכשירים

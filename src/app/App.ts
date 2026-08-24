@@ -37,6 +37,8 @@ export class App {
   private taskPanel: TaskPanel | null = null
   private session: AreaSession | null = null
   private pauseNode: HTMLElement | null = null
+  /** לחצו "תרגול" לפני שהייתה דמות. הכוונה ממתינה ליצירת הדמות. */
+  private pendingPractice = false
   private disposeScreen: (() => void) | null = null
   private current: ScreenName = 'title'
   /** לאן לחזור אחרי מסך משני. */
@@ -77,6 +79,7 @@ export class App {
     this.setScreen(
       buildTitleScreen({
         onStart: () => this.startPlaying(),
+        onPractice: () => this.startPracticeFromTitle(),
         onCustomize: () => this.showCreator('title'),
         onProgress: () => this.showProgress('title'),
         onSettings: () => this.showSettings('title'),
@@ -90,6 +93,30 @@ export class App {
     else this.showWorld()
   }
 
+  /**
+   * תרגול ישר ממסך הפתיחה.
+   *
+   * עד עכשיו התרגול היה קיים רק בתפריט שנפתח מתוך העולם התלת-ממדי,
+   * כלומר אחרי שנכנסים, מוצאים כפתור בפינה, ובוחרים פריט שני מתוך
+   * שמונה. ילדה בת שמונה שנכנסת ומסתובבת בעולם לא מגיעה לשם, וזה
+   * בדיוק מה שקרה: היא טיילה בטירה שבוע ולא פתחה אף משימה.
+   *
+   * העולם עדיין נטען מאחור, כי משם ממשיכים אחרי הסבב - אבל היא לא
+   * צריכה לנווט בו כדי להתחיל ללמוד.
+   */
+  private startPracticeFromTitle(): void {
+    if (getProgress().avatar === null) {
+      // אין עדיין דמות, אז יצירת הדמות באה קודם - אבל הכוונה נשמרת.
+      // בלי זה הלחיצה על "תרגול" מסתיימת בטיול בעולם, כלומר בדיוק
+      // במקום שממנו ניסינו לצאת.
+      this.pendingPractice = true
+      this.showCreator('world', true)
+      return
+    }
+    this.showWorld()
+    this.startPractice()
+  }
+
   private showCreator(back: ScreenName, firstTime = false): void {
     this.current = 'creator'
     this.world?.stop()
@@ -98,8 +125,13 @@ export class App {
       firstTime,
       onDone: (avatar) => {
         this.world?.setAvatar(avatar)
-        if (back === 'world') this.showWorld()
-        else this.showTitle()
+        if (back === 'world') {
+          this.showWorld()
+          if (this.pendingPractice) {
+            this.pendingPractice = false
+            this.startPractice()
+          }
+        } else this.showTitle()
       },
       onCancel: firstTime ? undefined : () => (back === 'world' ? this.showWorld() : this.showTitle()),
     })
