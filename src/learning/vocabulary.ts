@@ -73,6 +73,19 @@ export interface Word {
    * ולא בקריאה, כי היא לא ניתנת לפענוח עם הצלילים שכבר נלמדו.
    */
   sounds?: string[]
+  /**
+   * הצליל שבו המילה מתחילה, כמזהה מתוך phonics.ts.
+   *
+   * קיים בנפרד מ-sounds כי הוא עונה על שאלה אחרת. sounds הוא פירוק
+   * מלא לצורך קריאה, ויש רק למילים שאפשר לפענח עם מה שכבר נלמד.
+   * השדה הזה נחוץ גם למילה ארוכה שאי אפשר לפענח - "elephant" אינה
+   * מילה לקריאה, אבל השאלה "באיזה צליל היא מתחילה" בהחלט תקפה לגביה,
+   * וזו בדיוק השאלה שדפי העבודה בבית הספר שואלים.
+   *
+   * לא נגזר מהאות הראשונה, ובכוונה: g של goat ו-g של giraffe הן אותה
+   * אות ושני צלילים שונים, וניחוש כזה היה מלמד את דניאל דבר שגוי.
+   */
+  firstSound?: string
 }
 
 export const WORDS: Word[] = [
@@ -90,11 +103,11 @@ export const WORDS: Word[] = [
   // ---------- חפצים בגן ----------
   { id: 'star', english: 'star', hebrew: 'כוכב', category: 'objects', difficulty: 1, emoji: '⭐' },
   { id: 'flower', english: 'flower', hebrew: 'פרח', category: 'objects', difficulty: 1, emoji: '🌷' },
-  { id: 'tree', english: 'tree', hebrew: 'עץ', category: 'objects', difficulty: 1, emoji: '🌳' },
+  { id: 'tree', english: 'tree', hebrew: 'עץ', category: 'objects', difficulty: 1, emoji: '🌳', firstSound: 't' },
   { id: 'door', english: 'door', hebrew: 'דלת', category: 'objects', difficulty: 1, emoji: '🚪' },
   { id: 'key', english: 'key', hebrew: 'מפתח', category: 'objects', difficulty: 1, emoji: '🔑' },
   { id: 'book', english: 'book', hebrew: 'ספר', category: 'objects', difficulty: 1, emoji: '📕' },
-  { id: 'heart', english: 'heart', hebrew: 'לב', category: 'objects', difficulty: 1, emoji: '❤️' },
+  { id: 'heart', english: 'heart', hebrew: 'לב', category: 'objects', difficulty: 1, emoji: '❤️', firstSound: 'h' },
   { id: 'sun', english: 'sun', hebrew: 'שמש', category: 'objects', difficulty: 1, emoji: '☀️', sounds: ['s','u','n'] },
   { id: 'moon', english: 'moon', hebrew: 'ירח', category: 'objects', difficulty: 2, emoji: '🌙' },
   { id: 'crown', english: 'crown', hebrew: 'כתר', category: 'objects', difficulty: 2, emoji: '👑' },
@@ -104,7 +117,7 @@ export const WORDS: Word[] = [
   { id: 'dog', english: 'dog', hebrew: 'כלב', category: 'animals', difficulty: 1, emoji: '🐶', sounds: ['d','o','g'] },
   { id: 'bird', english: 'bird', hebrew: 'ציפור', category: 'animals', difficulty: 1, emoji: '🐦' },
   { id: 'fish', english: 'fish', hebrew: 'דג', category: 'animals', difficulty: 1, emoji: '🐟' },
-  { id: 'horse', english: 'horse', hebrew: 'סוס', category: 'animals', difficulty: 2, emoji: '🐴' },
+  { id: 'horse', english: 'horse', hebrew: 'סוס', category: 'animals', difficulty: 2, emoji: '🐴', firstSound: 'h' },
   { id: 'rabbit', english: 'rabbit', hebrew: 'ארנב', category: 'animals', difficulty: 2, emoji: '🐰' },
   { id: 'lion', english: 'lion', hebrew: 'אריה', category: 'animals', difficulty: 2, emoji: '🦁' },
   { id: 'monkey', english: 'monkey', hebrew: 'קוף', category: 'animals', difficulty: 2, emoji: '🐵' },
@@ -117,7 +130,7 @@ export const WORDS: Word[] = [
   { id: 'water', english: 'water', hebrew: 'מים', category: 'food', difficulty: 1, emoji: '💧' },
   { id: 'bread', english: 'bread', hebrew: 'לחם', category: 'food', difficulty: 2, emoji: '🍞' },
   { id: 'cake', english: 'cake', hebrew: 'עוגה', category: 'food', difficulty: 1, emoji: '🍰' },
-  { id: 'egg', english: 'egg', hebrew: 'ביצה', category: 'food', difficulty: 1, emoji: '🥚' },
+  { id: 'egg', english: 'egg', hebrew: 'ביצה', category: 'food', difficulty: 1, emoji: '🥚', firstSound: 'e' },
 
   // ---------- מספרים ----------
   { id: 'one', english: 'one', hebrew: 'אחת', category: 'numbers', difficulty: 1, emoji: '1️⃣', count: 1 },
@@ -161,7 +174,7 @@ export const WORDS: Word[] = [
   { id: 'no', english: 'no', hebrew: 'לא', category: 'greetings', difficulty: 1, emoji: '❌', audioKey: 'no' },
   { id: 'name', english: 'name', hebrew: 'שם', category: 'greetings', difficulty: 2, emoji: '🏷️', audioKey: 'name' },
   { id: 'boy', english: 'boy', hebrew: 'ילד', category: 'family', difficulty: 1, emoji: '👦', audioKey: 'boy' },
-  { id: 'girl', english: 'girl', hebrew: 'ילדה', category: 'family', difficulty: 1, emoji: '👧', audioKey: 'girl' },
+  { id: 'girl', english: 'girl', hebrew: 'ילדה', category: 'family', difficulty: 1, emoji: '👧', audioKey: 'girl', firstSound: 'g' },
 
   // ---------- Jet 2: הבית והמשפחה ----------
   { id: 'mother', english: 'mother', hebrew: 'אמא', category: 'family', difficulty: 1, emoji: '👩', audioKey: 'mother' },
@@ -169,7 +182,7 @@ export const WORDS: Word[] = [
   { id: 'brother', english: 'brother', hebrew: 'אח', category: 'family', difficulty: 2, emoji: '🧒', audioKey: 'brother' },
   { id: 'sister', english: 'sister', hebrew: 'אחות', category: 'family', difficulty: 2, emoji: '👧🏻', audioKey: 'sister' },
   { id: 'baby', english: 'baby', hebrew: 'תינוק', category: 'family', difficulty: 1, emoji: '👶', audioKey: 'baby' },
-  { id: 'house', english: 'house', hebrew: 'בית', category: 'objects', difficulty: 1, emoji: '🏠', audioKey: 'house' },
+  { id: 'house', english: 'house', hebrew: 'בית', category: 'objects', difficulty: 1, emoji: '🏠', audioKey: 'house', firstSound: 'h' },
   // גדול וקטן חייבים להיות אותו עצם בשני גדלים, אחרת זה מלמד צורה ולא גודל.
   // שני אימוג'ים שונים שמוצגים באותו גודל גופן נראים פשוט כשני דברים שונים.
   { id: 'big', english: 'big', hebrew: 'גדול', category: 'describing', difficulty: 1, emoji: '🔵', audioKey: 'big', sizeHint: 'big', sounds: ['b','i','g'] },
@@ -179,8 +192,8 @@ export const WORDS: Word[] = [
 
   // ---------- Jet 3: בית הספר ----------
   { id: 'bag', english: 'bag', hebrew: 'תיק', category: 'school', difficulty: 1, emoji: '🎒', audioKey: 'bag', sounds: ['b','a','g'] },
-  { id: 'pen', english: 'pen', hebrew: 'עט', category: 'school', difficulty: 2, emoji: '🖊️', audioKey: 'pen', sounds: ['p','e','n'] },
-  { id: 'pencil', english: 'pencil', hebrew: 'עיפרון', category: 'school', difficulty: 2, emoji: '✏️', audioKey: 'pencil' },
+  { id: 'pen', english: 'pen', hebrew: 'עט', category: 'school', difficulty: 2, emoji: '🖊️', audioKey: 'pen', sounds: ['p','e','n'], firstSound: 'p' },
+  { id: 'pencil', english: 'pencil', hebrew: 'עיפרון', category: 'school', difficulty: 2, emoji: '✏️', audioKey: 'pencil', firstSound: 'p' },
   { id: 'teacher', english: 'teacher', hebrew: 'מורה', category: 'school', difficulty: 2, emoji: '👩‍🏫', audioKey: 'teacher' },
   { id: 'classroom', english: 'classroom', hebrew: 'כיתה', category: 'school', difficulty: 3, emoji: '🏫', audioKey: 'classroom' },
   { id: 'sit', english: 'sit', hebrew: 'לשבת', category: 'school', difficulty: 2, emoji: '🪑', audioKey: 'sit', sounds: ['s','i','t'] },
@@ -201,8 +214,8 @@ export const WORDS: Word[] = [
 
   // צלילי קבוצה 1: s a t p i n
   { id: 'ant', english: 'ant', hebrew: 'נמלה', category: 'sounds', difficulty: 1, emoji: '🐜', sounds: ['a', 'n', 't'] },
-  { id: 'pin', english: 'pin', hebrew: 'סיכה', category: 'sounds', difficulty: 1, emoji: '📌', sounds: ['p', 'i', 'n'] },
-  { id: 'pan', english: 'pan', hebrew: 'מחבת', category: 'sounds', difficulty: 1, emoji: '🍳', sounds: ['p', 'a', 'n'] },
+  { id: 'pin', english: 'pin', hebrew: 'סיכה', category: 'sounds', difficulty: 1, emoji: '📌', sounds: ['p', 'i', 'n'], firstSound: 'p' },
+  { id: 'pan', english: 'pan', hebrew: 'מחבת', category: 'sounds', difficulty: 1, emoji: '🍳', sounds: ['p', 'a', 'n'], firstSound: 'p' },
   { id: 'tap', english: 'tap', hebrew: 'ברז', category: 'sounds', difficulty: 1, emoji: '🚰', sounds: ['t', 'a', 'p'] },
   { id: 'nap', english: 'nap', hebrew: 'תנומה', category: 'sounds', difficulty: 1, emoji: '😴', sounds: ['n', 'a', 'p'] },
   { id: 'tin', english: 'tin', hebrew: 'פחית', category: 'sounds', difficulty: 1, emoji: '🥫', sounds: ['t', 'i', 'n'] },
@@ -214,13 +227,13 @@ export const WORDS: Word[] = [
   { id: 'man', english: 'man', hebrew: 'איש', category: 'sounds', difficulty: 1, emoji: '👨', sounds: ['m', 'a', 'n'] },
   { id: 'cap', english: 'cap', hebrew: 'כובע מצחייה', category: 'sounds', difficulty: 1, emoji: '🧢', sounds: ['c', 'a', 'p'] },
   { id: 'kid', english: 'kid', hebrew: 'ילדה', category: 'sounds', difficulty: 1, emoji: '🧒', sounds: ['k', 'i', 'd'] },
-  { id: 'pig', english: 'pig', hebrew: 'חזיר', category: 'sounds', difficulty: 1, emoji: '🐷', sounds: ['p', 'i', 'g'] },
+  { id: 'pig', english: 'pig', hebrew: 'חזיר', category: 'sounds', difficulty: 1, emoji: '🐷', sounds: ['p', 'i', 'g'], firstSound: 'p' },
   { id: 'dig', english: 'dig', hebrew: 'לחפור', category: 'sounds', difficulty: 1, emoji: '⛏️', sounds: ['d', 'i', 'g'] },
 
   // צלילי קבוצה 3: e u r h b f l
   { id: 'bed', english: 'bed', hebrew: 'מיטה', category: 'sounds', difficulty: 1, emoji: '🛏️', sounds: ['b', 'e', 'd'] },
   { id: 'bus', english: 'bus', hebrew: 'אוטובוס', category: 'sounds', difficulty: 1, emoji: '🚌', sounds: ['b', 'u', 's'] },
-  { id: 'hat', english: 'hat', hebrew: 'כובע', category: 'sounds', difficulty: 1, emoji: '🎩', sounds: ['h', 'a', 't'] },
+  { id: 'hat', english: 'hat', hebrew: 'כובע', category: 'sounds', difficulty: 1, emoji: '🎩', sounds: ['h', 'a', 't'], firstSound: 'h' },
   { id: 'run', english: 'run', hebrew: 'לרוץ', category: 'sounds', difficulty: 1, emoji: '🏃', sounds: ['r', 'u', 'n'] },
   { id: 'leg', english: 'leg', hebrew: 'רגל', category: 'sounds', difficulty: 1, emoji: '🦵', sounds: ['l', 'e', 'g'] },
   { id: 'hen', english: 'hen', hebrew: 'תרנגולת', category: 'sounds', difficulty: 1, emoji: '🐔', sounds: ['h', 'e', 'n'] },
@@ -232,7 +245,7 @@ export const WORDS: Word[] = [
   { id: 'frog', english: 'frog', hebrew: 'צפרדע', category: 'sounds', difficulty: 2, emoji: '🐸', sounds: ['f', 'r', 'o', 'g'] },
   { id: 'flag', english: 'flag', hebrew: 'דגל', category: 'sounds', difficulty: 2, emoji: '🚩', sounds: ['f', 'l', 'a', 'g'] },
   { id: 'drum', english: 'drum', hebrew: 'תוף', category: 'sounds', difficulty: 2, emoji: '🥁', sounds: ['d', 'r', 'u', 'm'] },
-  { id: 'hand', english: 'hand', hebrew: 'יד', category: 'sounds', difficulty: 2, emoji: '✋', sounds: ['h', 'a', 'n', 'd'] },
+  { id: 'hand', english: 'hand', hebrew: 'יד', category: 'sounds', difficulty: 2, emoji: '✋', sounds: ['h', 'a', 'n', 'd'], firstSound: 'h' },
 
   // ---------- זוגות מינימליים ----------
   // המילים האלה קיימות כדי להעמיד זו מול זו שתי הגיות שדובר עברית
@@ -278,6 +291,56 @@ export const WORDS: Word[] = [
   { id: 'phrase_three_blue_bags', english: 'Three blue bags', hebrew: 'שלושה תיקים כחולים', category: 'phrases', difficulty: 3, emoji: '3️⃣🎒' },
   { id: 'phrase_a_happy_dog', english: 'A happy dog', hebrew: 'כלב שמח', category: 'phrases', difficulty: 1, emoji: '🐶😊' },
   { id: 'phrase_the_cow_is_big', english: 'The cow is big', hebrew: 'הפרה גדולה', category: 'phrases', difficulty: 2, emoji: '🐄' },
+
+  // ---------- מילים מדפי העבודה של בית הספר ----------
+  //
+  // חמש קבוצות, אות לכל אחת, בדיוק מהדפים שדניאל קיבלה. הדפים שואלים
+  // שאלה אחת: "צבעי את התמונות שמתחילות באות ...". לכן לכל מילה כאן
+  // יש firstSound, וזה מה שמאפשר למשחק לשאול את אותה שאלה.
+  //
+  // כל מילה קיבלה אימוג'י שאפשר לזהות בלי הסבר. מילה מהדף שלא היה לה
+  // אימוג'י כזה - נבל, סביבון - לא נכנסה, כי תמונה שצריך לנחש מה היא
+  // הופכת שאלה על צליל לשאלה על ציור.
+
+  // Ii
+  { id: 'iguana', english: 'iguana', hebrew: 'איגואנה', category: 'animals', difficulty: 2, emoji: '🦎', firstSound: 'i' },
+  { id: 'insect', english: 'insect', hebrew: 'חרק', category: 'animals', difficulty: 2, emoji: '🐞', firstSound: 'i' },
+  { id: 'igloo', english: 'igloo', hebrew: 'איגלו', category: 'objects', difficulty: 2, emoji: '🛖', firstSound: 'i' },
+  { id: 'ink', english: 'ink', hebrew: 'דיו', category: 'school', difficulty: 2, emoji: '🖋️', firstSound: 'i' },
+  { id: 'invitation', english: 'invitation', hebrew: 'הזמנה', category: 'objects', difficulty: 3, emoji: '💌', firstSound: 'i' },
+  { id: 'ill', english: 'ill', hebrew: 'חולה', category: 'describing', difficulty: 2, emoji: '🤒', firstSound: 'i' },
+  { id: 'ice_cream', english: 'ice cream', hebrew: 'גלידה', category: 'food', difficulty: 1, emoji: '🍦', firstSound: 'i' },
+
+  // Gg
+  { id: 'goat', english: 'goat', hebrew: 'עז', category: 'animals', difficulty: 2, emoji: '🐐', firstSound: 'g' },
+  { id: 'grapes', english: 'grapes', hebrew: 'ענבים', category: 'food', difficulty: 2, emoji: '🍇', firstSound: 'g' },
+  { id: 'guitar', english: 'guitar', hebrew: 'גיטרה', category: 'objects', difficulty: 2, emoji: '🎸', firstSound: 'g' },
+  { id: 'gate', english: 'gate', hebrew: 'שער', category: 'objects', difficulty: 2, emoji: '⛩️', firstSound: 'g' },
+  { id: 'glue', english: 'glue', hebrew: 'דבק', category: 'school', difficulty: 2, emoji: '🧴', firstSound: 'g' },
+  { id: 'gift', english: 'gift', hebrew: 'מתנה', category: 'objects', difficulty: 1, emoji: '🎁', firstSound: 'g' },
+
+  // Hh
+  { id: 'hamburger', english: 'hamburger', hebrew: 'המבורגר', category: 'food', difficulty: 1, emoji: '🍔', firstSound: 'h' },
+  { id: 'honey', english: 'honey', hebrew: 'דבש', category: 'food', difficulty: 2, emoji: '🍯', firstSound: 'h' },
+
+  // Tt
+  { id: 'tiger', english: 'tiger', hebrew: 'נמר', category: 'animals', difficulty: 2, emoji: '🐯', firstSound: 't' },
+  { id: 'tooth', english: 'tooth', hebrew: 'שן', category: 'objects', difficulty: 2, emoji: '🦷', firstSound: 't' },
+  { id: 'turtle', english: 'turtle', hebrew: 'צב', category: 'animals', difficulty: 2, emoji: '🐢', firstSound: 't' },
+  { id: 'tie', english: 'tie', hebrew: 'עניבה', category: 'objects', difficulty: 2, emoji: '👔', firstSound: 't' },
+  { id: 'tomato', english: 'tomato', hebrew: 'עגבנייה', category: 'food', difficulty: 2, emoji: '🍅', firstSound: 't' },
+  { id: 'train', english: 'train', hebrew: 'רכבת', category: 'objects', difficulty: 1, emoji: '🚂', firstSound: 't' },
+
+  // Pp
+  { id: 'pizza', english: 'pizza', hebrew: 'פיצה', category: 'food', difficulty: 1, emoji: '🍕', firstSound: 'p' },
+  { id: 'panda', english: 'panda', hebrew: 'פנדה', category: 'animals', difficulty: 2, emoji: '🐼', firstSound: 'p' },
+  { id: 'popcorn', english: 'popcorn', hebrew: 'פופקורן', category: 'food', difficulty: 2, emoji: '🍿', firstSound: 'p' },
+
+  // Ee
+  { id: 'elephant', english: 'elephant', hebrew: 'פיל', category: 'animals', difficulty: 2, emoji: '🐘', firstSound: 'e' },
+  { id: 'envelope', english: 'envelope', hebrew: 'מעטפה', category: 'objects', difficulty: 2, emoji: '✉️', firstSound: 'e' },
+  { id: 'eye', english: 'eye', hebrew: 'עין', category: 'objects', difficulty: 1, emoji: '👁️', firstSound: 'e' },
+  { id: 'elk', english: 'elk', hebrew: 'אייל', category: 'animals', difficulty: 3, emoji: '🦌', firstSound: 'e' },
 ]
 
 const BY_ID = new Map<string, Word>(WORDS.map((w) => [w.id, w]))

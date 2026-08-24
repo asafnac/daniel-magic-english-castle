@@ -11,11 +11,13 @@ import { bandOf, freshStat, masteryOf, urgencyOf, type ItemStat } from '../learn
 import { mergeSaves } from '../learning/merge'
 import { PRACTICE_ROUND, PracticeSession, candidates, practiceAvailable } from '../learning/practiceSession'
 import { createList, deleteList, parseWordList } from '../learning/wordbank'
-import { PHONICS_TYPES, createTask, type Task } from '../learning/questions'
+import { PHONICS_TYPES, createTask, trackedItems, type Task } from '../learning/questions'
+import { SCHOOL_SETS, addSchoolSet } from '../learning/schoolSets'
 import { PHONEMES, decodableWords, getPhoneme, phonemesUpTo, spellingMatchesSounds, wordsUpTo } from '../learning/phonics'
 import { FRAMES, buildSentence, combinationCount, defaultPicks, neighbours } from '../learning/sentences'
 import { CONTRASTS, pairIsUsable, partnerOf } from '../learning/contrasts'
 import { AreaSession, type TaskSession } from '../learning/session'
+import { Lives } from '../learning/lives'
 import { WORDS, findWord, getWord } from '../learning/vocabulary'
 import { TaskPanel } from '../ui/components/TaskPanel'
 import '../styles/base.css'
@@ -337,6 +339,51 @@ function run(): void {
     check('the weak item is practised before the solid one', urgencyOf(shakyOld, now) > urgencyOf(solidOld, now))
   }
 
+  // ------------------------------------------- דפי האותיות מבית הספר
+  {
+    const setIds = new Set(SCHOOL_SETS.map((s) => s.id))
+    check('school set ids unique', setIds.size === SCHOOL_SETS.length)
+    check('every school set names a real sound', SCHOOL_SETS.every((s) => PHONEMES.some((p) => p.id === s.phoneme)))
+    check('every word in a school set exists', SCHOOL_SETS.every((s) => s.words.every((w) => !!findWord(w))))
+
+    // הטענה שהדף כולו נשען עליה: כל מילה בדף באמת מתחילה בצליל של
+    // הדף. מילה אחת שלא, והמשחק מלמד בדיוק את ההפך מהשיעור.
+    check(
+      'every word in a school set really starts with that sound',
+      SCHOOL_SETS.every((s) => s.words.every((w) => getWord(w).firstSound === s.phoneme)),
+      SCHOOL_SETS.flatMap((s) => s.words.filter((w) => getWord(w).firstSound !== s.phoneme)).join(', '),
+    )
+    check('every school set has enough words for a round', SCHOOL_SETS.every((s) => s.words.length >= 4))
+    check(
+      'no two words in one set share a picture',
+      SCHOOL_SETS.every((s) => new Set(s.words.map((w) => getWord(w).emoji)).size === s.words.length),
+    )
+    check(
+      'a word with a first sound is spelled with that letter',
+      WORDS.filter((w) => w.firstSound).every((w) => w.english[0].toLowerCase() === getPhoneme(w.firstSound ?? '').grapheme),
+      WORDS.filter((w) => w.firstSound && w.english[0].toLowerCase() !== getPhoneme(w.firstSound ?? '').grapheme).map((w) => w.english).join(', '),
+    )
+
+    // המשימה עצמה: תשובה אחת נכונה, ואף הסחה שמתחילה באותו צליל.
+    for (const set of SCHOOL_SETS) {
+      for (const wordId of set.words) {
+        const task = createTask('free-practice', { type: 'first-sound', word: wordId, phoneme: set.phoneme })
+        const correct = task.options.filter((o) => o.correct)
+        check(`first-sound ${wordId}: exactly one right answer`, correct.length === 1)
+        check(`first-sound ${wordId}: the right answer is the word`, correct[0]?.id === wordId)
+        check(
+          `first-sound ${wordId}: no distractor starts with the same sound`,
+          task.options.filter((o) => !o.correct).every((o) => getWord(o.id).firstSound !== set.phoneme),
+          task.options.filter((o) => !o.correct).map((o) => o.id).join(', '),
+        )
+        check(`first-sound ${wordId}: every option is labelled in hebrew`, task.options.every((o) => !!o.label))
+        check(`first-sound ${wordId}: the letter is on screen`, (task.stimulus?.emoji ?? '').toLowerCase().includes(set.phoneme))
+        check(`first-sound ${wordId}: the sound is tracked`, trackedItems(task).some((i) => i.kind === 'sound' && i.id === set.phoneme))
+        check(`first-sound ${wordId}: the word is tracked too`, trackedItems(task).some((i) => i.kind === 'word' && i.id === wordId))
+      }
+    }
+  }
+
   // ---------------------------------------------------------- מיזוג בין מכשירים
   {
     const base = freshSave()
@@ -482,6 +529,20 @@ function run(): void {
     check('a pasted word list is understood', parsed.length === 4, String(parsed.length))
     check('the english side is read correctly', parsed.map((p) => p.english).join(',') === 'cat,dog,house,fish', parsed.map((p) => p.english).join(','))
     check('the hebrew side is read correctly', parsed[0].hebrew === 'חתול' && parsed[3].hebrew === 'דג')
+
+    // הוספת דף שלם בלחיצה אחת, כמו במסך ההורים.
+    {
+      const before = getProgress().customWords.length
+      const set = SCHOOL_SETS[0]
+      const id = addSchoolSet(set)
+      const list = getProgress().lists.find((l) => l.id === id)
+      check('a school set becomes a list', !!list && list.wordIds.length === set.words.length)
+      check('a school set list is active', list?.active === true)
+      // המילים כבר במאגר, ולכן אסור שייווצרו כפילויות שלהן.
+      check('a school set reuses the words already in the game', getProgress().customWords.length === before)
+      check('a school set list points at the real words', (list?.wordIds ?? []).every((w) => set.words.includes(w)))
+      deleteList(id)
+    }
 
     const listId = createList('הכתבה שבוע 3', [{ english: 'cat', hebrew: 'חתול' }, { english: 'zebra', hebrew: 'זברה' }])
     const save = getProgress()
@@ -890,6 +951,43 @@ function runPanelChecks(): void {
   check('closed panel is hidden again', panel2.root.hidden === true)
   host2.remove()
 
+  // ------------------------------------------- משימת הצליל הפותח על המסך
+  //
+  // המשימה שמתרגלת את דף העבודה של בית הספר. נבדקת דרך ה-DOM כי שתי
+  // הטענות שלה הן טענות על מה שרואים: שהאות מוצגת, ושלכל תמונה יש
+  // תווית. בלי התווית זו חידת ציור ולא שאלה על צליל.
+  {
+    eraseEverything()
+    const host3 = document.createElement('div')
+    document.body.appendChild(host3)
+    let rights = 0
+    const panel3 = new TaskPanel(host3, {
+      onExit: () => {},
+      onCorrect: () => (rights += 1),
+      onWrong: () => {},
+      onAreaComplete: () => {},
+    })
+
+    const set = SCHOOL_SETS[1]
+    const task = createTask('free-practice', { type: 'first-sound', word: set.words[0], phoneme: set.phoneme })
+    panel3.open(sessionShowing(task))
+
+    check('first-sound task shows the letter big', (host3.querySelector('.task-stimulus')?.textContent ?? '').toLowerCase().includes(set.phoneme))
+    check('first-sound task offers four pictures', host3.querySelectorAll('.option').length === 4)
+    check(
+      'every picture in a first-sound task is labelled',
+      host3.querySelectorAll('.option .option-label').length === host3.querySelectorAll('.option').length,
+      `${host3.querySelectorAll('.option .option-label').length}/${host3.querySelectorAll('.option').length}`,
+    )
+    check('first-sound task has a button to hear the sound again', !!host3.querySelector('.task-replay .speaker-btn'))
+
+    const right = task.options.find((o) => o.correct)!.id
+    host3.querySelector<HTMLButtonElement>(`.option[data-id="${right}"]`)?.click()
+    check('the right picture is accepted', rights === 1)
+    panel3.close()
+    host3.remove()
+  }
+
   eraseEverything()
   playThroughEveryArea()
   playTheWholeCastleInOrder()
@@ -1057,6 +1155,38 @@ function answerCorrectly(session: TaskSession): void {
 }
 
 /** אותו דבר, אבל דרך לחיצות אמיתיות על המסך. */
+/**
+ * סבב מזויף שמציג משימה אחת נתונה.
+ *
+ * קיים כדי לבדוק משימה ספציפית על המסך. סבב אמיתי בוחר את המשימות
+ * שלו בעצמו, ולכן אי אפשר לבקש ממנו להציג דווקא את זו.
+ */
+function sessionShowing(task: Task): TaskSession {
+  const lives = new Lives()
+  lives.startTask()
+  return {
+    task,
+    lives,
+    position: { done: 0, total: 1 },
+    accent: '#4fb3a1',
+    completion: { emoji: '🌟', title: 'סיימת', text: '', nextLabel: 'חזרה' },
+    answer: (optionId: string) => {
+      const right = task.options.find((o) => o.id === optionId)?.correct === true
+      if (!right) lives.loseOne()
+      return { correct: right, diamonds: lives.value, outOfDiamonds: false, hideDistractors: 0 }
+    },
+    answerPair: () => null,
+    confirmSaid: () => ({ correct: true, diamonds: lives.value, outOfDiamonds: false, hideDistractors: 0 }),
+    answerBuilt: () => ({ correct: true, diamonds: lives.value, outOfDiamonds: false, hideDistractors: 0 }),
+    currentHint: () => undefined,
+    currentHideDistractors: () => 0,
+    currentRevealedTiles: () => 0,
+    currentRevealedWords: () => 0,
+    restartCurrentTask: () => {},
+    advance: () => ({ areaCompleted: true }),
+  }
+}
+
 function answerCorrectlyOnScreen(host: HTMLElement, task: Task): void {
   if (task.type === 'say-it' || task.type === 'say-contrast') {
     host.querySelector<HTMLButtonElement>('.say-it .big-btn')?.click()
