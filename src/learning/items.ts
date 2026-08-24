@@ -47,7 +47,7 @@ export const ITEMS: Item[] = [
     kind: 'outfit',
     name: 'שמלת הגינה',
     emoji: '👗',
-    from: 'פתחת את שער הגינה',
+    from: 'תפסת את פיפ במרדף',
   },
 ]
 

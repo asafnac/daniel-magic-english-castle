@@ -32,6 +32,7 @@ import { buildAskScreen } from '../ui/screens/AskScreen'
 import { buildSayScreen } from '../ui/screens/SayScreen'
 import { buildRewardScreen } from '../ui/screens/RewardScreen'
 import { buildRoomScreen } from '../ui/screens/RoomScreen'
+import { buildChaseScreen } from '../ui/screens/ChaseScreen'
 import { DEFAULT_AVATAR } from './avatarConfig'
 
 type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn' | 'lab' | 'parent' | 'scene' | 'quest' | 'room'
@@ -148,6 +149,12 @@ export class App {
 
     if (beat.kind === 'say') {
       const view = buildSayScreen({ beat, onDone: next, onExit: exit })
+      this.setScreen(view.root, view.dispose)
+      return
+    }
+
+    if (beat.kind === 'play') {
+      const view = buildChaseScreen({ onDone: next, onExit: exit })
       this.setScreen(view.root, view.dispose)
       return
     }

@@ -59,6 +59,20 @@ export interface SayBeat {
   teaches?: string[]
 }
 
+/**
+ * מיני-משחק. אפס אנגלית.
+ *
+ * זה לא פרס על למידה - זה חלק מהמשחק, ולכן הוא יושב באמצע המשימה
+ * ולא בסופה. הפעימה הזאת קיימת כדי שדניאל תרצה להמשיך, וזו סיבה
+ * מספיקה בפני עצמה.
+ */
+export interface PlayBeat {
+  kind: 'play'
+  game: 'chase'
+  /** מה מסבירים לפני, בעברית ובמשפט אחד. */
+  intro: string
+}
+
 /** פרס: פריט שנשאר. */
 export interface RewardBeat {
   kind: 'reward'
@@ -67,7 +81,7 @@ export interface RewardBeat {
   text: string
 }
 
-export type Beat = SceneBeat | AskBeat | SayBeat | RewardBeat
+export type Beat = SceneBeat | AskBeat | SayBeat | PlayBeat | RewardBeat
 
 export interface Quest {
   id: string
@@ -114,6 +128,16 @@ export const QUESTS: Quest[] = [
         thanks: 'Yes! There he is!',
         thanksHe: 'כן! הנה הוא!',
         teaches: ['Can you find the ___?'],
+      },
+      {
+        kind: 'play',
+        game: 'chase',
+        intro: 'פיפ בורח בגינה! תפסי אותו.',
+      },
+      {
+        kind: 'reward',
+        item: 'outfit-garden',
+        text: 'רצת בכל הגינה, וקיבלת את שמלת הגינה.',
       },
       {
         kind: 'say',

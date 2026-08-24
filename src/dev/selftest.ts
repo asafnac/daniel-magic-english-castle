@@ -27,6 +27,8 @@ import { FIRST_SCENE, SCENES, findScene, getScene } from '../learning/scenes'
 import { FIRST_QUEST, QUESTS, findQuest, getQuest, structuresOf } from '../learning/quests'
 import { ITEMS, findItem, getItem } from '../learning/items'
 import { buildRoomScreen } from '../ui/screens/RoomScreen'
+import { buildChaseScreen } from '../ui/screens/ChaseScreen'
+import { ChaseGame } from '../game/chase'
 import { buildAskScreen } from '../ui/screens/AskScreen'
 import { buildSayScreen } from '../ui/screens/SayScreen'
 import { buildRewardScreen } from '../ui/screens/RewardScreen'
@@ -605,6 +607,73 @@ function run(): void {
       check('the room names the item', (room.textContent ?? '').includes(getItem('pet-pip').name))
       check('the room says where it came from', (room.textContent ?? '').includes(getItem('pet-pip').from))
       check('an item not yet collected gives nothing away', !(room.querySelector('.room-slot.empty')?.textContent ?? '').includes(getItem('crown-apple').name))
+    }
+
+    // ---- המרדף: הכלל היחיד הוא שאי אפשר להפסיד ----
+    {
+      // רודפת בעקשנות: מכוונת תמיד לאן שפיפ נמצא. חייבת לתפוס אותו.
+      const persistent = new ChaseGame(() => 0.5)
+      let t = 0
+      while (!persistent.state.caught && t < 120) {
+        persistent.target = { ...persistent.state.pip }
+        persistent.step(0.05)
+        t += 0.05
+      }
+      check('a child who keeps chasing always catches Pip', persistent.state.caught, `${t.toFixed(1)}s`)
+      check('and it does not take forever', t < 70, `${t.toFixed(1)}s`)
+
+      // פיפ באמת בורח: מי שלא זזה בכלל לא תופסת אותו במקרה
+      const idle = new ChaseGame(() => 0.5)
+      for (let i = 0; i < 200; i++) idle.step(0.05)
+      check('standing still does not catch him by accident', !idle.state.caught)
+
+      // הוא נעצר לאכול, וזה החלון האמיתי לתפוס
+      const grazing = new ChaseGame(() => 0.5)
+      let ate = false
+      for (let i = 0; i < 400 && !ate; i++) {
+        grazing.step(0.05)
+        if (grazing.eatenApples > 0) ate = true
+      }
+      check('Pip stops to eat the apples', ate)
+      check('eating slows him almost to a stop', grazing.state.eating > 0)
+
+      // אצבע שנגררת מאחורי הדרקון ואף פעם לא ממש עליו. זו הילדה
+      // האמיתית, וזה המקרה שגילה שצריך את הסוף המובטח.
+      const trailing = new ChaseGame(() => 0.5)
+      let t2 = 0
+      while (!trailing.state.caught && t2 < 200) {
+        trailing.target = { x: trailing.state.pip.x + 0.09, y: trailing.state.pip.y + 0.09 }
+        trailing.step(0.05)
+        t2 += 0.05
+      }
+      check('a finger that always trails behind still ends in a catch', trailing.state.caught, `${t2.toFixed(1)}s`)
+      check('and that catch comes in a minute and a half, not five', t2 < 90, `${t2.toFixed(1)}s`)
+
+      // ואפילו מי שמזיזה את האצבע לאט ובאיחור גדול
+      const slow = new ChaseGame(() => 0.5)
+      let t3 = 0
+      let aim = { x: 0.5, y: 0.5 }
+      while (!slow.state.caught && t3 < 200) {
+        // מעדכנת את היעד רק כל חצי שנייה
+        if (Math.round(t3 * 2) !== Math.round((t3 - 0.05) * 2)) aim = { ...slow.state.pip }
+        slow.target = aim
+        slow.step(0.05)
+        t3 += 0.05
+      }
+      check('a slow, laggy chase also ends in a catch', slow.state.caught, `${t3.toFixed(1)}s`)
+
+      // המסך עצמו עולה ומצייר
+      const chaseHost = document.createElement('div')
+      document.body.appendChild(chaseHost)
+      let chaseDone = 0
+      const view = buildChaseScreen({ onDone: () => (chaseDone += 1) })
+      chaseHost.appendChild(view.root)
+      check('the chase screen has a field to play in', !!view.root.querySelector('.chase-canvas'))
+      check('the chase screen explains the control in one line', (view.root.querySelector('.chase-hint')?.textContent ?? '').length > 10)
+      check('the chase screen never mentions a score', !/נקוד|ניקוד|score/i.test(view.root.textContent ?? ''))
+      check('the chase does not end before it began', chaseDone === 0)
+      view.dispose()
+      chaseHost.remove()
     }
 
     host.remove()
