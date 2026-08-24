@@ -117,6 +117,14 @@ export function stopSpeaking(): void {
 interface SpeakOptions {
   /** קצב. אם לא צוין, נלקח מההגדרות. */
   rate?: number
+  /**
+   * גובה הקול. קיים כדי שדמויות שונות יישמעו שונה.
+   *
+   * דפדפן נותן קול אנגלי אחד או שניים, ולכן ההבדל בין קוסם זקן
+   * לדרקון קטן חייב לבוא מכאן. זה לא קישוט: ילדה שמזהה מי מדבר
+   * לפי הקול מבינה את הסצנה גם כשהמילים עדיין לא לגמרי ברורות.
+   */
+  pitch?: number
   /** לעצור אמירה קודמת. ברירת מחדל: כן. */
   interrupt?: boolean
   onEnd?: () => void
@@ -138,7 +146,7 @@ function speakWith(text: string, voice: SpeechSynthesisVoice | null, lang: strin
     if (voice) u.voice = voice
     u.lang = voice?.lang ?? lang
     u.rate = opts.rate ?? settings.speechRate
-    u.pitch = 1.05
+    u.pitch = opts.pitch ?? 1.05
     u.volume = 1
     if (opts.onEnd) {
       u.addEventListener('end', () => opts.onEnd?.())
@@ -151,6 +159,8 @@ function speakWith(text: string, voice: SpeechSynthesisVoice | null, lang: strin
     return false
   }
 }
+
+export type { SpeakOptions }
 
 /** מקריא מילה או משפט באנגלית, בקצב איטי. */
 export function speakEnglish(text: string, opts: SpeakOptions = {}): boolean {

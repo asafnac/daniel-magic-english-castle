@@ -7,12 +7,15 @@
 
 import { startMusic, unlockAudio } from '../../learning/audio'
 import { practiceAvailable } from '../../learning/practiceSession'
-import { getProgress } from '../../learning/progress'
+import { FIRST_SCENE } from '../../learning/scenes'
+import { getProgress, hasSeenScene } from '../../learning/progress'
 import { isSpeechSupported, unlockSpeech } from '../../learning/speech'
 import { bigButton, el } from '../dom'
 
 export interface TitleScreenDeps {
   onStart: () => void
+  /** הסיפור: סצנה עם הדמויות. */
+  onStory: () => void
   /** סבב תרגול ישר מכאן, בלי לנווט בעולם התלת-ממדי. */
   onPractice: () => void
   onCustomize: () => void
@@ -52,6 +55,17 @@ export function buildTitleScreen(deps: TitleScreenDeps): HTMLElement {
     deps.onStart()
   }, { emoji: '🌟', variant: 'gold' })
   card.appendChild(startBtn)
+
+  // הסיפור ראשון, מעל הכל חוץ מ"להמשיך לשחק". זה הדבר שאמור למשוך
+  // אותה פנימה - דמויות שקורה להן משהו - ולא רשימת משימות.
+  card.appendChild(
+    bigButton(hasSeenScene(FIRST_SCENE) ? 'הסיפור' : 'סיפור חדש!', () => {
+      unlockAudio()
+      unlockSpeech()
+      startMusic()
+      deps.onStory()
+    }, { emoji: '🐉', variant: 'pink' }),
+  )
 
   // התרגול יושב כאן ולא רק בתפריט שבתוך העולם, כי שם לא מוצאים אותו.
   // הוא מוצג רק כשיש באמת מה לתרגל - כפתור שמודיע "עוד אין מה לתרגל"

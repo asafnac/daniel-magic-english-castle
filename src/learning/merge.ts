@@ -94,6 +94,7 @@ export interface MergeableSave {
   deletedLists: string[]
   customWords: MergeableWord[]
   log: MergeableLogEntry[]
+  scenesSeen: string[]
   revision: number
 }
 
@@ -301,6 +302,8 @@ export function mergeSaves<T extends MergeableSave>(a: T, b: T): T {
     deletedLists,
     customWords: mergeCustomWords(a.customWords ?? [], b.customWords ?? [], keepWordIds),
     log: mergeLog(a.log, b.log),
+    // סצנה שנראתה במכשיר אחד נחשבת שנראתה. איחוד, כמו כל דגל שרק נדלק.
+    scenesSeen: union(a.scenesSeen, b.scenesSeen),
 
     // הגדרות הסנכרון אינן כאן ואף פעם לא ימוזגו: הן שייכות למכשיר,
     // ויושבות במפתח localStorage נפרד. ראו syncConfig.ts.

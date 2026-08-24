@@ -7,7 +7,11 @@ type Props = {
   type?: string
   title?: string
   ariaLabel?: string
+  /** מסתיר מקוראי מסך. לעיטורים שהמידע שבהם כבר נאמר בטקסט. */
+  ariaHidden?: boolean
   role?: string
+  /** כיוון הכתיבה. משמש לטקסט באנגלית בתוך דף בעברית. */
+  dir?: 'ltr' | 'rtl'
   tabIndex?: number
   dataset?: Record<string, string>
   style?: Partial<CSSStyleDeclaration>
@@ -26,7 +30,9 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   if (props.html !== undefined) node.innerHTML = props.html
   if (props.title) node.title = props.title
   if (props.ariaLabel) node.setAttribute('aria-label', props.ariaLabel)
+  if (props.ariaHidden) node.setAttribute('aria-hidden', 'true')
   if (props.role) node.setAttribute('role', props.role)
+  if (props.dir) node.dir = props.dir
   if (props.tabIndex !== undefined) node.tabIndex = props.tabIndex
   if (props.type && node instanceof HTMLButtonElement) node.type = props.type as 'button' | 'submit' | 'reset'
   if (props.dataset) for (const [k, v] of Object.entries(props.dataset)) node.dataset[k] = v

@@ -199,6 +199,11 @@ button {
   background: linear-gradient(160deg, var(--sky) 0%, var(--turquoise) 100%);
 }
 
+/* הסיפור. ורוד-סגול, כדי שהוא ייקרא כדבר אחר משאר הכפתורים */
+.big-btn.pink {
+  background: linear-gradient(160deg, #f487c0 0%, var(--purple) 100%);
+}
+
 .big-btn.small {
   min-height: 50px;
   font-size: 17px;

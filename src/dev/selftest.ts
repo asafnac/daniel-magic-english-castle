@@ -6,7 +6,7 @@
 import { Castle } from '../game/Castle'
 import { AREA_LAYOUTS, HALF_WIDTH, SPAWN, areaAt, areaEntry } from '../game/layout'
 import { AREAS } from '../learning/areas'
-import { GAME_ID, eraseEverything, freshSave, getProgress, readLog, type SaveData } from '../learning/progress'
+import { GAME_ID, eraseEverything, freshSave, getProgress, hasSeenScene, markSceneSeen, readLog, type SaveData } from '../learning/progress'
 import { bandOf, freshStat, masteryOf, urgencyOf, type ItemStat } from '../learning/mastery'
 import { mergeSaves } from '../learning/merge'
 import { PRACTICE_ROUND, PracticeSession, candidates, practiceAvailable } from '../learning/practiceSession'
@@ -21,6 +21,9 @@ import { Lives } from '../learning/lives'
 import { WORDS, findWord, getWord } from '../learning/vocabulary'
 import { TaskPanel } from '../ui/components/TaskPanel'
 import { buildTitleScreen } from '../ui/screens/TitleScreen'
+import { buildSceneScreen, castOf } from '../ui/screens/SceneScreen'
+import { CHARACTERS, PLAYER_CHARACTER, findCharacter } from '../learning/characters'
+import { FIRST_SCENE, SCENES, findScene, getScene } from '../learning/scenes'
 import '../styles/base.css'
 import '../styles/screens.css'
 import '../styles/task.css'
@@ -385,6 +388,84 @@ function run(): void {
     }
   }
 
+  // ------------------------------------------------- דמויות וסצנות
+  {
+    const ids = new Set(CHARACTERS.map((c) => c.id))
+    check('character ids unique', ids.size === CHARACTERS.length)
+    check('every character has a hebrew name for the subtitles', CHARACTERS.every((c) => c.hebrewName.length > 0))
+    check('every character has its own voice', new Set(CHARACTERS.map((c) => `${c.pitch}:${c.rate}`)).size === CHARACTERS.length)
+    check('every voice is inside what the browser accepts', CHARACTERS.every((c) => c.pitch >= 0 && c.pitch <= 2 && c.rate >= 0.1 && c.rate <= 2))
+    check('the player character exists', !!findCharacter(PLAYER_CHARACTER))
+
+    const sceneIds = new Set(SCENES.map((s) => s.id))
+    check('scene ids unique', sceneIds.size === SCENES.length)
+    check('the first scene exists', !!findScene(FIRST_SCENE))
+    check('every scene has lines', SCENES.every((s) => s.lines.length > 0))
+
+    // סצנה ארוכה היא סרט, וילדה בת שמונה עם קשב קצר יוצאת ממנו.
+    check('no scene is longer than eight lines', SCENES.every((s) => s.lines.length <= 8), SCENES.filter((s) => s.lines.length > 8).map((s) => s.id).join(', '))
+
+    check('every line names a character that exists', SCENES.every((s) => s.lines.every((l) => !!findCharacter(l.who))))
+
+    // הכתובית בעברית היא מה שמונע מהסצנה להיות רעש. שורה בלי כתובית
+    // היא שורה שדניאל לא מבינה, ורגע אחד כזה מספיק כדי לאבד אותה.
+    check('every line has a hebrew subtitle', SCENES.every((s) => s.lines.every((l) => l.he.trim().length > 0)))
+    check('every line is short enough to hold on screen', SCENES.every((s) => s.lines.every((l) => l.en.length <= 42)), SCENES.flatMap((s) => s.lines.filter((l) => l.en.length > 42).map((l) => l.en)).join(' | '))
+    check('every scene has more than one character in it', SCENES.every((s) => castOf(s).length >= 2))
+
+    // המסך עצמו
+    eraseEverything()
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    let done = 0
+    const scene = getScene(FIRST_SCENE)
+    const view = buildSceneScreen({ scene, onDone: () => (done += 1), onExit: () => {} })
+    host.appendChild(view.root)
+
+    const line = (): string => host.querySelector('.scene-en')?.textContent ?? ''
+    check('the scene opens on its first line', line() === scene.lines[0].en, line())
+    check('the subtitle is shown too', (host.querySelector('.scene-he')?.textContent ?? '') === scene.lines[0].he)
+    check('every character in the scene is on screen', host.querySelectorAll('.scene-face').length === castOf(scene).length)
+    check('exactly one character is talking', host.querySelectorAll('.scene-face.talking').length === 1)
+
+    const nextBtn = Array.from(host.querySelectorAll<HTMLButtonElement>('.big-btn')).find((b) => (b.textContent ?? '').includes('הלאה'))
+    check('there is a next button', !!nextBtn)
+    nextBtn?.click()
+    check('pressing next moves to the second line', line() === scene.lines[1].en, line())
+    check('the talking character moved with it', (host.querySelector('.scene-face.talking')?.getAttribute('data-who') ?? '') === scene.lines[1].who)
+
+    // עד הסוף
+    for (let i = 1; i < scene.lines.length; i++) {
+      const btn = Array.from(host.querySelectorAll<HTMLButtonElement>('.big-btn')).find((b) => /הלאה|יאללה/.test(b.textContent ?? ''))
+      btn?.click()
+    }
+    check('the scene finishes on its own', done === 1, String(done))
+
+    // דילוג: חייב לעבוד מהשורה הראשונה, אחרת סצנה שכבר ראתה היא מלכודת
+    let skipped = 0
+    const second = buildSceneScreen({ scene, onDone: () => (skipped += 1) })
+    host.appendChild(second.root)
+    // מחפשים בתוך המסך השני בלבד: המסך הראשון עדיין תלוי ב-host,
+    // וכפתור הדילוג שלו כבר מת אחרי שהסצנה שלו הסתיימה.
+    const skipBtn = Array.from(second.root.querySelectorAll<HTMLButtonElement>('.big-btn')).find((b) => (b.textContent ?? '').includes('לדלג'))
+    check('there is a skip button from the very first line', !!skipBtn)
+    skipBtn?.click()
+    check('skipping ends the scene', skipped === 1)
+    second.dispose()
+    view.dispose()
+    host.remove()
+
+    // הסצנה נזכרת, כדי שלא תיכפה עליה שוב
+    eraseEverything()
+    check('a scene starts out unseen', !hasSeenScene(FIRST_SCENE))
+    markSceneSeen(FIRST_SCENE)
+    check('a watched scene is remembered', hasSeenScene(FIRST_SCENE))
+    markSceneSeen(FIRST_SCENE)
+    check('remembering it twice keeps one entry', getProgress().scenesSeen.filter((s) => s === FIRST_SCENE).length === 1)
+    check('a watched scene survives a merge', mergeSaves(freshSave(), getProgress()).scenesSeen.includes(FIRST_SCENE))
+    eraseEverything()
+  }
+
   // ------------------------------------------- הדרך אל התרגול ממסך הפתיחה
   //
   // נבנה אחרי שדניאל שיחקה שבוע וצברה אפס כוכבים: היא נכנסה, טיילה
@@ -395,6 +476,7 @@ function run(): void {
     let practiceRequested = 0
     const deps = {
       onStart: () => {},
+      onStory: () => {},
       onPractice: () => (practiceRequested += 1),
       onCustomize: () => {},
       onProgress: () => {},
