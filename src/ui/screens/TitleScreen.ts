@@ -6,12 +6,15 @@
  */
 
 import { startMusic, unlockAudio } from '../../learning/audio'
+import { practiceAvailable } from '../../learning/practiceSession'
 import { getProgress } from '../../learning/progress'
 import { isSpeechSupported, unlockSpeech } from '../../learning/speech'
 import { bigButton, el } from '../dom'
 
 export interface TitleScreenDeps {
   onStart: () => void
+  /** סבב תרגול ישר מכאן, בלי לנווט בעולם התלת-ממדי. */
+  onPractice: () => void
   onCustomize: () => void
   onProgress: () => void
   onSettings: () => void
@@ -49,6 +52,20 @@ export function buildTitleScreen(deps: TitleScreenDeps): HTMLElement {
     deps.onStart()
   }, { emoji: '🌟', variant: 'gold' })
   card.appendChild(startBtn)
+
+  // התרגול יושב כאן ולא רק בתפריט שבתוך העולם, כי שם לא מוצאים אותו.
+  // הוא מוצג רק כשיש באמת מה לתרגל - כפתור שמודיע "עוד אין מה לתרגל"
+  // הוא כפתור שמלמד לא ללחוץ עליו.
+  if (practiceAvailable() > 0) {
+    card.appendChild(
+      bigButton('תרגול קסום', () => {
+        unlockAudio()
+        unlockSpeech()
+        startMusic()
+        deps.onPractice()
+      }, { emoji: '✨', variant: 'sky' }),
+    )
+  }
 
   const row = el('div', { class: 'row title-row' }, [
     bigButton('הדמות שלי', () => {
