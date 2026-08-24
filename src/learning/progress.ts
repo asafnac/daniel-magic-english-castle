@@ -141,6 +141,14 @@ export interface SaveData {
   /** יומן הפעילות. ראו LogEntry. */
   log: LogEntry[]
   /**
+   * מזהי סצנות שדניאל כבר ראתה.
+   *
+   * סצנה שנראתה לא נכפית עליה שוב. זה מונע את הדבר שהכי מהר גורם
+   * לילדה לנטוש: להיתקע בסרטון שכבר ראית בדרך למשהו שרצית לעשות.
+   * היא עדיין יכולה לבחור לראות אותה שוב.
+   */
+  scenesSeen: string[]
+  /**
    * מונה שינויים מקומי. עולה בכל שמירה, ומשמש את הסנכרון כדי לדעת
    * שיש כאן משהו חדש לדחוף.
    */
@@ -183,6 +191,7 @@ export function freshSave(): SaveData {
     // ריק, אבל קיים. ראו LogEntry: בלי השדה הזה הסנכרון הראשון
     // ממכשיר חדש נדחה על ידי השרת.
     log: [],
+    scenesSeen: [],
     revision: 0,
   }
 }
@@ -271,6 +280,7 @@ function migrate(raw: unknown): SaveData {
     deletedLists: Array.isArray(r.deletedLists) ? r.deletedLists.filter((x) => typeof x === 'string') : [],
     customWords: readCustomWords(r.customWords),
     log: readLog(r.log),
+    scenesSeen: Array.isArray(r.scenesSeen) ? r.scenesSeen.filter((x: unknown) => typeof x === 'string') : [],
     revision: numOr(r.revision, 0),
   }
 }
@@ -307,6 +317,18 @@ export function trimLog(entries: LogEntry[]): LogEntry[] {
 /** המפתח שלפיו שורה זהה בשני מכשירים היא שורה אחת. */
 export function logKey(entry: LogEntry): string {
   return `${entry.t}:${entry.kind}:${entry.id}`
+}
+
+/** מסמן שסצנה נצפתה. */
+export function markSceneSeen(id: string): void {
+  updateProgress((d) => {
+    if (!d.scenesSeen.includes(id)) d.scenesSeen.push(id)
+  })
+}
+
+/** האם דניאל כבר ראתה את הסצנה הזאת. */
+export function hasSeenScene(id: string, save: SaveData = getProgress()): boolean {
+  return save.scenesSeen.includes(id)
 }
 
 /** רושם ביומן שמשהו הסתיים. */

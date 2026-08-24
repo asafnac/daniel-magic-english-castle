@@ -8,7 +8,7 @@
 import { World } from '../game/World'
 import { getArea } from '../learning/areas'
 import { sfxGate, sfxStar, startMusic, stopMusic } from '../learning/audio'
-import { areaProgress, flushSave, getProgress } from '../learning/progress'
+import { areaProgress, flushSave, getProgress, markSceneSeen } from '../learning/progress'
 import { AreaSession } from '../learning/session'
 import { PracticeSession, practiceAvailable } from '../learning/practiceSession'
 import { Hud } from '../ui/components/Hud'
@@ -24,10 +24,12 @@ import { buildProgressScreen } from '../ui/screens/ProgressScreen'
 import { buildSentenceLab } from '../ui/screens/SentenceLab'
 import { buildParentScreen } from '../ui/screens/ParentScreen'
 import { buildSettingsScreen } from '../ui/screens/SettingsScreen'
+import { buildSceneScreen } from '../ui/screens/SceneScreen'
 import { buildTitleScreen } from '../ui/screens/TitleScreen'
+import { FIRST_SCENE, getScene } from '../learning/scenes'
 import { DEFAULT_AVATAR } from './avatarConfig'
 
-type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn' | 'lab' | 'parent'
+type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn' | 'lab' | 'parent' | 'scene'
 
 export class App {
   private worldHost: HTMLElement
@@ -79,6 +81,7 @@ export class App {
     this.setScreen(
       buildTitleScreen({
         onStart: () => this.startPlaying(),
+        onStory: () => this.showScene(FIRST_SCENE),
         onPractice: () => this.startPracticeFromTitle(),
         onCustomize: () => this.showCreator('title'),
         onProgress: () => this.showProgress('title'),
@@ -86,6 +89,29 @@ export class App {
         onParent: () => this.showParent('title'),
       }),
     )
+  }
+
+  /**
+   * הסיפור.
+   *
+   * הסצנה נגמרת ובחזרה למסך הפתיחה, ולא ישר לתוך העולם. זה זמני:
+   * כשה-Quest Runner ייכנס, הסצנה תהיה הפעימה הראשונה בשרשרת והיא
+   * תמסור את התור לפעימה הבאה. כרגע היא עומדת בפני עצמה, וזה עדיין
+   * שווה - זה הרגע הראשון שבו יש כאן דמויות שקורה להן משהו.
+   */
+  private showScene(sceneId: string): void {
+    this.current = 'scene'
+    this.world?.stop()
+    this.worldHost.classList.add('hidden')
+    const scene = buildSceneScreen({
+      scene: getScene(sceneId),
+      onDone: () => {
+        markSceneSeen(sceneId)
+        this.showTitle()
+      },
+      onExit: () => this.showTitle(),
+    })
+    this.setScreen(scene.root, scene.dispose)
   }
 
   private startPlaying(): void {
