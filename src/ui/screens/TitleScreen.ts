@@ -18,6 +18,8 @@ export interface TitleScreenDeps {
   onStory: () => void
   /** סבב תרגול ישר מכאן, בלי לנווט בעולם התלת-ממדי. */
   onPractice: () => void
+  /** החדר שבו יושב מה שאספה. */
+  onRoom: () => void
   onCustomize: () => void
   onProgress: () => void
   onSettings: () => void
@@ -78,6 +80,14 @@ export function buildTitleScreen(deps: TitleScreenDeps): HTMLElement {
         startMusic()
         deps.onPractice()
       }, { emoji: '✨', variant: 'sky' }),
+    )
+  }
+
+  // החדר מופיע רק כשיש בו משהו. חדר ריק שמוצג מההתחלה הוא הבטחה
+  // שלא קוימה, וזה בדיוק מה ששובר אמון של ילדה.
+  if (save.collected.length > 0) {
+    card.appendChild(
+      bigButton('החדר שלי', () => deps.onRoom(), { emoji: '🏠', variant: 'sky' }),
     )
   }
 
