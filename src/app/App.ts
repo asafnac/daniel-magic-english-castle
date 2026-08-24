@@ -8,7 +8,7 @@
 import { World } from '../game/World'
 import { getArea } from '../learning/areas'
 import { sfxGate, sfxStar, startMusic, stopMusic } from '../learning/audio'
-import { areaProgress, flushSave, getProgress, markSceneSeen } from '../learning/progress'
+import { advanceQuest, areaProgress, collectItem, flushSave, getProgress, markSceneSeen, questBeatOf } from '../learning/progress'
 import { AreaSession } from '../learning/session'
 import { PracticeSession, practiceAvailable } from '../learning/practiceSession'
 import { Hud } from '../ui/components/Hud'
@@ -26,10 +26,15 @@ import { buildParentScreen } from '../ui/screens/ParentScreen'
 import { buildSettingsScreen } from '../ui/screens/SettingsScreen'
 import { buildSceneScreen } from '../ui/screens/SceneScreen'
 import { buildTitleScreen } from '../ui/screens/TitleScreen'
-import { FIRST_SCENE, getScene } from '../learning/scenes'
+import { getScene } from '../learning/scenes'
+import { FIRST_QUEST, getQuest } from '../learning/quests'
+import { buildAskScreen } from '../ui/screens/AskScreen'
+import { buildSayScreen } from '../ui/screens/SayScreen'
+import { buildRewardScreen } from '../ui/screens/RewardScreen'
+import { buildRoomScreen } from '../ui/screens/RoomScreen'
 import { DEFAULT_AVATAR } from './avatarConfig'
 
-type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn' | 'lab' | 'parent' | 'scene'
+type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn' | 'lab' | 'parent' | 'scene' | 'quest' | 'room'
 
 export class App {
   private worldHost: HTMLElement
@@ -81,8 +86,9 @@ export class App {
     this.setScreen(
       buildTitleScreen({
         onStart: () => this.startPlaying(),
-        onStory: () => this.showScene(FIRST_SCENE),
+        onStory: () => this.runQuest(FIRST_QUEST),
         onPractice: () => this.startPracticeFromTitle(),
+        onRoom: () => this.showRoom(),
         onCustomize: () => this.showCreator('title'),
         onProgress: () => this.showProgress('title'),
         onSettings: () => this.showSettings('title'),
@@ -92,26 +98,69 @@ export class App {
   }
 
   /**
-   * הסיפור.
+   * מריץ משימה מהפעימה שבה היא נמצאת.
    *
-   * הסצנה נגמרת ובחזרה למסך הפתיחה, ולא ישר לתוך העולם. זה זמני:
-   * כשה-Quest Runner ייכנס, הסצנה תהיה הפעימה הראשונה בשרשרת והיא
-   * תמסור את התור לפעימה הבאה. כרגע היא עומדת בפני עצמה, וזה עדיין
-   * שווה - זה הרגע הראשון שבו יש כאן דמויות שקורה להן משהו.
+   * זו השרשרת: סצנה, בקשה באנגלית, שיחה, פרס. כל פעימה מצוירת על
+   * ידי המסך שמתאים לה, וכשהיא נגמרת המיקום נשמר והבאה עולה.
+   *
+   * שמירת המיקום היא לא נוחות: ילדה בת שמונה יוצאת באמצע, וסיפור
+   * שמתחיל מההתחלה בכל כניסה הוא סיפור שלא מסיימים לעולם.
    */
-  private showScene(sceneId: string): void {
-    this.current = 'scene'
+  private runQuest(questId: string): void {
+    const quest = getQuest(questId)
+    const at = questBeatOf(questId)
+
+    // המשימה הסתיימה. חוזרים למסך הפתיחה, ושם היא כבר מסומנת.
+    if (at >= quest.beats.length) {
+      this.showTitle()
+      return
+    }
+
+    const beat = quest.beats[at]
+    const next = (): void => {
+      advanceQuest(questId, at + 1)
+      this.runQuest(questId)
+    }
+    const exit = (): void => this.showTitle()
+
+    this.current = 'quest'
     this.world?.stop()
     this.worldHost.classList.add('hidden')
-    const scene = buildSceneScreen({
-      scene: getScene(sceneId),
-      onDone: () => {
-        markSceneSeen(sceneId)
-        this.showTitle()
-      },
-      onExit: () => this.showTitle(),
-    })
-    this.setScreen(scene.root, scene.dispose)
+
+    if (beat.kind === 'scene') {
+      const view = buildSceneScreen({
+        scene: getScene(beat.scene),
+        onDone: () => {
+          markSceneSeen(beat.scene)
+          next()
+        },
+        onExit: exit,
+      })
+      this.setScreen(view.root, view.dispose)
+      return
+    }
+
+    if (beat.kind === 'ask') {
+      const view = buildAskScreen({ beat, onDone: next, onExit: exit })
+      this.setScreen(view.root, view.dispose)
+      return
+    }
+
+    if (beat.kind === 'say') {
+      const view = buildSayScreen({ beat, onDone: next, onExit: exit })
+      this.setScreen(view.root, view.dispose)
+      return
+    }
+
+    collectItem(beat.item)
+    this.setScreen(buildRewardScreen({ itemId: beat.item, text: beat.text, onDone: next }))
+  }
+
+  private showRoom(): void {
+    this.current = 'room'
+    this.world?.stop()
+    this.worldHost.classList.add('hidden')
+    this.setScreen(buildRoomScreen(() => this.showTitle()))
   }
 
   private startPlaying(): void {

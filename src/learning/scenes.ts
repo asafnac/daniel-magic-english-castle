@@ -97,6 +97,32 @@ export const SCENES: Scene[] = [
       },
     ],
   },
+  {
+    id: 'dragon-2-garden',
+    title: 'משהו זז בגינה',
+    summary:
+      'הפעימה שמפרידה בין שתי הבקשות ומקדמת את הסיפור. מאיה רואה את פיפ בגינה. ' +
+      'המבנה is in the חוזר כאן מפי מאיה, אחרי שזיגי כבר השתמש ב-Where is.',
+    lines: [
+      {
+        who: 'maya',
+        en: 'Wait! Look at the garden!',
+        he: 'רגע! תסתכלי על הגינה!',
+        teaches: ['Look at the ___!'],
+      },
+      {
+        who: 'pip',
+        en: 'More apples! Yum!',
+        he: 'עוד תפוחים! ממ!',
+      },
+      {
+        who: 'ziggy',
+        en: 'He is in the garden!',
+        he: 'הוא בגינה!',
+        teaches: ['___ is in the ___'],
+      },
+    ],
+  },
 ]
 
 /** הסצנה שפותחת את הסיפור. */

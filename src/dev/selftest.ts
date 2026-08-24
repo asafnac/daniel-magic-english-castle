@@ -6,7 +6,7 @@
 import { Castle } from '../game/Castle'
 import { AREA_LAYOUTS, HALF_WIDTH, SPAWN, areaAt, areaEntry } from '../game/layout'
 import { AREAS } from '../learning/areas'
-import { GAME_ID, eraseEverything, freshSave, getProgress, hasSeenScene, markSceneSeen, readLog, type SaveData } from '../learning/progress'
+import { GAME_ID, advanceQuest, collectItem, eraseEverything, freshSave, getProgress, hasItem, hasSeenScene, markSceneSeen, questBeatOf, readLog, type SaveData } from '../learning/progress'
 import { bandOf, freshStat, masteryOf, urgencyOf, type ItemStat } from '../learning/mastery'
 import { mergeSaves } from '../learning/merge'
 import { PRACTICE_ROUND, PracticeSession, candidates, practiceAvailable } from '../learning/practiceSession'
@@ -24,6 +24,12 @@ import { buildTitleScreen } from '../ui/screens/TitleScreen'
 import { buildSceneScreen, castOf } from '../ui/screens/SceneScreen'
 import { CHARACTERS, PLAYER_CHARACTER, findCharacter } from '../learning/characters'
 import { FIRST_SCENE, SCENES, findScene, getScene } from '../learning/scenes'
+import { FIRST_QUEST, QUESTS, findQuest, getQuest, structuresOf } from '../learning/quests'
+import { ITEMS, findItem, getItem } from '../learning/items'
+import { buildRoomScreen } from '../ui/screens/RoomScreen'
+import { buildAskScreen } from '../ui/screens/AskScreen'
+import { buildSayScreen } from '../ui/screens/SayScreen'
+import { buildRewardScreen } from '../ui/screens/RewardScreen'
 import '../styles/base.css'
 import '../styles/screens.css'
 import '../styles/task.css'
@@ -466,6 +472,145 @@ function run(): void {
     eraseEverything()
   }
 
+  // ------------------------------------------------------- משימות
+  {
+    eraseEverything()
+    const questIds = new Set(QUESTS.map((q) => q.id))
+    check('quest ids unique', questIds.size === QUESTS.length)
+    check('the first quest exists', !!findQuest(FIRST_QUEST))
+    check('every quest has beats', QUESTS.every((q) => q.beats.length > 0))
+
+    // הכלל שמונע מהמשחק לחזור להיות שאלון: שתי פעימות מאותו סוג
+    // ברצף. אם זה קורה, האינטראקציה לא מתחלפת - וזו כל הנקודה.
+    for (const quest of QUESTS) {
+      const repeats = quest.beats.filter((b, i) => i > 0 && quest.beats[i - 1].kind === b.kind)
+      check(`${quest.id}: no two beats of the same kind in a row`, repeats.length === 0, repeats.map((b) => b.kind).join(', '))
+      check(`${quest.id}: opens with a scene`, quest.beats[0].kind === 'scene')
+      check(`${quest.id}: ends with something she keeps`, quest.beats[quest.beats.length - 1].kind === 'reward')
+      check(`${quest.id}: teaches whole structures`, structuresOf(quest).length >= 3, structuresOf(quest).join(' · '))
+    }
+
+    for (const quest of QUESTS) {
+      for (const beat of quest.beats) {
+        if (beat.kind === 'scene') check(`${quest.id}: scene ${beat.scene} exists`, !!findScene(beat.scene))
+        if (beat.kind === 'reward') check(`${quest.id}: reward ${beat.item} exists`, !!findItem(beat.item))
+        if (beat.kind === 'ask') {
+          check(`${quest.id}/${beat.answer}: the character exists`, !!findCharacter(beat.character))
+          check(`${quest.id}/${beat.answer}: the answer is one of the options`, beat.options.includes(beat.answer))
+          check(`${quest.id}/${beat.answer}: every option is a real word`, beat.options.every((w) => !!findWord(w)))
+          check(`${quest.id}/${beat.answer}: no two options look the same`, new Set(beat.options.map((w) => getWord(w).emoji)).size === beat.options.length)
+          // מה שנאמר הוא משפט, לא מילה. זו כל ההבחנה מהמשחק הישן.
+          check(`${quest.id}/${beat.answer}: the character speaks a whole sentence`, beat.say.trim().split(/\s+/).length >= 4, beat.say)
+          // ההודעה אחרי טעות עוזרת ולא שופטת
+          check(`${quest.id}/${beat.answer}: the help never says wrong`, !/wrong|incorrect|no[.!]/i.test(beat.help), beat.help)
+          check(`${quest.id}/${beat.answer}: the help is translated too`, beat.helpHe.length > 0 && beat.thanksHe.length > 0)
+        }
+        if (beat.kind === 'say') {
+          check(`${quest.id}/say: at least two things to say`, beat.choices.length >= 2)
+          check(`${quest.id}/say: every choice is a whole sentence`, beat.choices.every((c) => c.en.trim().split(/\s+/).length >= 3))
+          check(`${quest.id}/say: every choice is translated`, beat.choices.every((c) => c.he.length > 0))
+        }
+      }
+    }
+
+    // המיקום נשמר, ובמיזוג נלקח המתקדם
+    check('a quest starts at its first beat', questBeatOf(FIRST_QUEST) === 0)
+    advanceQuest(FIRST_QUEST, 3)
+    check('the position is remembered', questBeatOf(FIRST_QUEST) === 3)
+    advanceQuest(FIRST_QUEST, 1)
+    check('going back through a beat does not rewind the story', questBeatOf(FIRST_QUEST) === 3)
+    check('the further device wins a merge', mergeSaves(freshSave(), getProgress()).questBeat[FIRST_QUEST] === 3)
+
+    // אוסף
+    eraseEverything()
+    check('the collection starts empty', getProgress().collected.length === 0)
+    collectItem('pet-pip')
+    check('a collected item is kept', hasItem('pet-pip'))
+    collectItem('pet-pip')
+    check('collecting twice keeps one', getProgress().collected.filter((i) => i === 'pet-pip').length === 1)
+    check('an item survives a merge', mergeSaves(freshSave(), getProgress()).collected.includes('pet-pip'))
+
+    // ---- המסכים עצמם ----
+    eraseEverything()
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const quest = getQuest(FIRST_QUEST)
+    const askBeat = quest.beats.find((b) => b.kind === 'ask')
+    if (askBeat && askBeat.kind === 'ask') {
+      let done = 0
+      const view = buildAskScreen({ beat: askBeat, onDone: () => (done += 1) })
+      host.appendChild(view.root)
+
+      const option = (id: string) => view.root.querySelector<HTMLButtonElement>(`.ask-option[data-id="${id}"]`)
+      check('the ask beat shows every option', view.root.querySelectorAll('.ask-option').length === askBeat.options.length)
+      check('the ask beat speaks a whole sentence', (view.root.querySelector('.scene-en')?.textContent ?? '') === askBeat.say)
+
+      const wrongId = askBeat.options.find((o) => o !== askBeat.answer)!
+      option(wrongId)?.click()
+      check('a wrong pick never ends the beat', done === 0)
+      check('a wrong pick brings help, not a verdict', (view.root.querySelector('.scene-en')?.textContent ?? '') === askBeat.help)
+      check('a wrong pick puts a hint on the right one', option(askBeat.answer)?.classList.contains('ask-hint') === true)
+      check('the wrong option is not marked as failed', !(option(wrongId)?.className ?? '').includes('wrong'))
+
+      // טעות שנייה: העזרה מתחזקת, וזה עדיין לא נגמר
+      option(wrongId)?.click()
+      check('a second wrong pick strengthens the help', option(askBeat.answer)?.classList.contains('ask-hint-strong') === true)
+      check('a second wrong pick still does not end the beat', done === 0)
+
+      option(askBeat.answer)?.click()
+      check('the right pick is thanked, not scored', (view.root.querySelector('.scene-en')?.textContent ?? '') === askBeat.thanks)
+      const nextBtn = Array.from(view.root.querySelectorAll<HTMLButtonElement>('.big-btn')).find((b) => (b.textContent ?? '').includes('הלאה'))
+      check('the right pick offers to continue', !!nextBtn)
+      nextBtn?.click()
+      check('continuing ends the beat', done === 1)
+      view.dispose()
+    }
+
+    const sayBeat = quest.beats.find((b) => b.kind === 'say')
+    if (sayBeat && sayBeat.kind === 'say') {
+      let done = 0
+      const view = buildSayScreen({ beat: sayBeat, onDone: () => (done += 1) })
+      host.appendChild(view.root)
+      check('role play offers every line', view.root.querySelectorAll('.say-choice').length === sayBeat.choices.length)
+      const first = view.root.querySelector<HTMLButtonElement>('.say-choice')
+      first?.click()
+      check('choosing a line does not end it immediately', done === 0)
+      const cont = Array.from(view.root.querySelectorAll<HTMLButtonElement>('.big-btn')).find((b) => (b.textContent ?? '').includes('הלאה'))
+      check('role play offers to continue after answering', !!cont)
+      cont?.click()
+      check('role play finishes', done === 1)
+      view.dispose()
+    }
+
+    {
+      let done = 0
+      const view = buildRewardScreen({ itemId: 'pet-pip', text: 'בדיקה', onDone: () => (done += 1) })
+      host.appendChild(view)
+      check('the reward names the item', (view.querySelector('.reward-name')?.textContent ?? '') === getItem('pet-pip').name)
+      check('the reward says where it came from', (view.querySelector('.reward-from')?.textContent ?? '').length > 0)
+      view.querySelector<HTMLButtonElement>('.big-btn')?.click()
+      check('the reward can be dismissed', done === 1)
+    }
+
+    // החדר: מה שנאסף נראה, ומה שלא - מסומן כמקום ריק
+    {
+      eraseEverything()
+      const emptyRoom = buildRoomScreen(() => {})
+      check('an empty room shows every slot as still missing', emptyRoom.querySelectorAll('.room-slot.has').length === 0)
+      check('an empty room still shows the slots, as an invitation', emptyRoom.querySelectorAll('.room-slot').length === ITEMS.length)
+
+      collectItem('pet-pip')
+      const room = buildRoomScreen(() => {})
+      check('a collected item shows in the room', room.querySelectorAll('.room-slot.has').length === 1)
+      check('the room names the item', (room.textContent ?? '').includes(getItem('pet-pip').name))
+      check('the room says where it came from', (room.textContent ?? '').includes(getItem('pet-pip').from))
+      check('an item not yet collected gives nothing away', !(room.querySelector('.room-slot.empty')?.textContent ?? '').includes(getItem('crown-apple').name))
+    }
+
+    host.remove()
+    eraseEverything()
+  }
+
   // ------------------------------------------- הדרך אל התרגול ממסך הפתיחה
   //
   // נבנה אחרי שדניאל שיחקה שבוע וצברה אפס כוכבים: היא נכנסה, טיילה
@@ -478,6 +623,7 @@ function run(): void {
       onStart: () => {},
       onStory: () => {},
       onPractice: () => (practiceRequested += 1),
+      onRoom: () => {},
       onCustomize: () => {},
       onProgress: () => {},
       onSettings: () => {},

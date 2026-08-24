@@ -149,6 +149,16 @@ export interface SaveData {
    */
   scenesSeen: string[]
   /**
+   * כמה פעימות הושלמו בכל משימה. המפתח הוא מזהה המשימה.
+   *
+   * מונה ולא דגל, כי אמצע משימה הוא מצב אמיתי: ילדה שיצאה אחרי
+   * שלוש פעימות חוזרת לפעימה הרביעית, לא לתחילת הסיפור. וכמונה
+   * שרק עולה, המיזוג בין מכשירים הוא פשוט מקסימום.
+   */
+  questBeat: Record<string, number>
+  /** פריטים שנאספו: חיות, בגדים, כתרים. תמיד רק נוסף. */
+  collected: string[]
+  /**
    * מונה שינויים מקומי. עולה בכל שמירה, ומשמש את הסנכרון כדי לדעת
    * שיש כאן משהו חדש לדחוף.
    */
@@ -192,6 +202,8 @@ export function freshSave(): SaveData {
     // ממכשיר חדש נדחה על ידי השרת.
     log: [],
     scenesSeen: [],
+    questBeat: {},
+    collected: [],
     revision: 0,
   }
 }
@@ -281,6 +293,8 @@ function migrate(raw: unknown): SaveData {
     customWords: readCustomWords(r.customWords),
     log: readLog(r.log),
     scenesSeen: Array.isArray(r.scenesSeen) ? r.scenesSeen.filter((x: unknown) => typeof x === 'string') : [],
+    questBeat: readQuestBeat(r.questBeat),
+    collected: Array.isArray(r.collected) ? r.collected.filter((x: unknown) => typeof x === 'string') : [],
     revision: numOr(r.revision, 0),
   }
 }
@@ -317,6 +331,44 @@ export function trimLog(entries: LogEntry[]): LogEntry[] {
 /** המפתח שלפיו שורה זהה בשני מכשירים היא שורה אחת. */
 export function logKey(entry: LogEntry): string {
   return `${entry.t}:${entry.kind}:${entry.id}`
+}
+
+/** קריאה סלחנית של מיקום המשימות. */
+function readQuestBeat(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) out[id] = Math.floor(value)
+  }
+  return out
+}
+
+/** באיזו פעימה המשימה נמצאת. 0 פירושו שהיא עוד לא התחילה. */
+export function questBeatOf(questId: string, save: SaveData = getProgress()): number {
+  return save.questBeat[questId] ?? 0
+}
+
+/**
+ * מקדם את המשימה לפעימה הבאה.
+ *
+ * מקסימום ולא השמה: אם דניאל חוזרת לראות סצנה שכבר עברה, אסור
+ * שהצפייה החוזרת תחזיר אותה אחורה בסיפור.
+ */
+export function advanceQuest(questId: string, beat: number): void {
+  updateProgress((d) => {
+    d.questBeat[questId] = Math.max(d.questBeat[questId] ?? 0, beat)
+  })
+}
+
+/** מוסיף פריט לאוסף. */
+export function collectItem(itemId: string): void {
+  updateProgress((d) => {
+    if (!d.collected.includes(itemId)) d.collected.push(itemId)
+  })
+}
+
+export function hasItem(itemId: string, save: SaveData = getProgress()): boolean {
+  return save.collected.includes(itemId)
 }
 
 /** מסמן שסצנה נצפתה. */

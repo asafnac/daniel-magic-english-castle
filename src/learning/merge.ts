@@ -95,6 +95,8 @@ export interface MergeableSave {
   customWords: MergeableWord[]
   log: MergeableLogEntry[]
   scenesSeen: string[]
+  questBeat: Record<string, number>
+  collected: string[]
   revision: number
 }
 
@@ -152,6 +154,15 @@ function mergeLog(a: MergeableLogEntry[] | undefined, b: MergeableLogEntry[] | u
     .sort((x, y) => x[1].t - y[1].t || x[0].localeCompare(y[0]))
     .map(([, entry]) => entry)
   return sorted.length > MAX_LOG ? sorted.slice(sorted.length - MAX_LOG) : sorted
+}
+
+/** המתקדם מבין שני המכשירים בכל משימה. */
+function mergeQuestBeat(a: Record<string, number> | undefined, b: Record<string, number> | undefined): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const key of new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})])) {
+    out[key] = maxNum(a?.[key], b?.[key])
+  }
+  return out
 }
 
 function maxNum(a: number | undefined, b: number | undefined): number {
@@ -304,6 +315,10 @@ export function mergeSaves<T extends MergeableSave>(a: T, b: T): T {
     log: mergeLog(a.log, b.log),
     // סצנה שנראתה במכשיר אחד נחשבת שנראתה. איחוד, כמו כל דגל שרק נדלק.
     scenesSeen: union(a.scenesSeen, b.scenesSeen),
+    // מיקום בסיפור הוא מונה שרק עולה, ולכן מקסימום לכל משימה.
+    questBeat: mergeQuestBeat(a.questBeat, b.questBeat),
+    // פריט שנאסף לא נלקח בחזרה. לעולם.
+    collected: union(a.collected, b.collected),
 
     // הגדרות הסנכרון אינן כאן ואף פעם לא ימוזגו: הן שייכות למכשיר,
     // ויושבות במפתח localStorage נפרד. ראו syncConfig.ts.
