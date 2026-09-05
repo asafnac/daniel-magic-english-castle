@@ -78,6 +78,16 @@ export const CHARACTERS: Character[] = [
     rate: 0.7,
   },
   {
+    id: 'mimi',
+    name: 'Mimi',
+    hebrewName: 'מימי',
+    emoji: '🐱',
+    color: '#e59b3c',
+    personality: 'חתולה קטנה שהגיעה בגלל ריח העוגה. אומרת מה היא אוהבת, ותמיד מתחילה במיאו.',
+    pitch: 1.8,
+    rate: 0.88,
+  },
+  {
     id: 'daniel',
     name: 'Daniel',
     hebrewName: 'דניאל',

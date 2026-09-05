@@ -49,6 +49,20 @@ export const ITEMS: Item[] = [
     emoji: '👗',
     from: 'תפסת את פיפ במרדף',
   },
+  {
+    id: 'outfit-chef',
+    kind: 'outfit',
+    name: 'סינר הבישול',
+    emoji: '🧑‍🍳',
+    from: 'בישלת לפיפ במטבח של זיגי',
+  },
+  {
+    id: 'pet-mimi',
+    kind: 'pet',
+    name: 'מימי החתולה',
+    emoji: '🐱',
+    from: 'היא הגיעה בגלל ריח העוגה',
+  },
 ]
 
 export function findItem(id: string): Item | undefined {

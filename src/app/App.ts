@@ -8,7 +8,7 @@
 import { World } from '../game/World'
 import { getArea } from '../learning/areas'
 import { sfxGate, sfxStar, startMusic, stopMusic } from '../learning/audio'
-import { advanceQuest, areaProgress, areaStage, collectItem, flushSave, getProgress, markSceneSeen, questBeatOf } from '../learning/progress'
+import { advanceQuest, areaProgress, areaStage, collectItem, flushSave, getProgress, markSceneSeen } from '../learning/progress'
 import { AreaSession } from '../learning/session'
 import { PracticeSession, practiceAvailable } from '../learning/practiceSession'
 import { Hud } from '../ui/components/Hud'
@@ -27,15 +27,16 @@ import { buildSettingsScreen } from '../ui/screens/SettingsScreen'
 import { buildSceneScreen } from '../ui/screens/SceneScreen'
 import { buildTitleScreen } from '../ui/screens/TitleScreen'
 import { getScene } from '../learning/scenes'
-import { FIRST_QUEST, getQuest } from '../learning/quests'
+import { getQuest, questStartBeat } from '../learning/quests'
 import { buildAskScreen } from '../ui/screens/AskScreen'
 import { buildSayScreen } from '../ui/screens/SayScreen'
 import { buildRewardScreen } from '../ui/screens/RewardScreen'
 import { buildRoomScreen } from '../ui/screens/RoomScreen'
+import { buildStoriesScreen } from '../ui/screens/StoriesScreen'
 import { buildChaseScreen } from '../ui/screens/ChaseScreen'
 import { DEFAULT_AVATAR } from './avatarConfig'
 
-type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn' | 'lab' | 'parent' | 'scene' | 'quest' | 'room'
+type ScreenName = 'title' | 'creator' | 'world' | 'progress' | 'settings' | 'map' | 'learn' | 'lab' | 'parent' | 'scene' | 'quest' | 'room' | 'stories'
 
 export class App {
   private worldHost: HTMLElement
@@ -87,7 +88,7 @@ export class App {
     this.setScreen(
       buildTitleScreen({
         onStart: () => this.startPlaying(),
-        onStory: () => this.runQuest(FIRST_QUEST),
+        onStory: () => this.showStories(),
         onPractice: () => this.startPracticeFromTitle(),
         onRoom: () => this.showRoom(),
         onCustomize: () => this.showCreator('title'),
@@ -98,31 +99,48 @@ export class App {
     )
   }
 
+  /** רשימת הסיפורים. משם נכנסים לחדש, לאמצע, או לצפייה חוזרת. */
+  private showStories(): void {
+    this.current = 'stories'
+    this.world?.stop()
+    this.worldHost.classList.add('hidden')
+    this.setScreen(
+      buildStoriesScreen({
+        onPick: (questId) => this.runQuest(questId, questStartBeat(questId)),
+        onBack: () => this.showTitle(),
+      }),
+    )
+  }
+
   /**
-   * מריץ משימה מהפעימה שבה היא נמצאת.
+   * מריץ משימה מהפעימה שנמסרה.
    *
    * זו השרשרת: סצנה, בקשה באנגלית, שיחה, פרס. כל פעימה מצוירת על
    * ידי המסך שמתאים לה, וכשהיא נגמרת המיקום נשמר והבאה עולה.
    *
    * שמירת המיקום היא לא נוחות: ילדה בת שמונה יוצאת באמצע, וסיפור
    * שמתחיל מההתחלה בכל כניסה הוא סיפור שלא מסיימים לעולם.
+   *
+   * הפעימה מגיעה כפרמטר ולא נקראת כאן מהשמירה, וזה מה שמאפשר
+   * צפייה חוזרת: המונה השמור הוא מקסימום בלבד, אז מעבר חוזר על
+   * סיפור שהושלם לא דורס כלום - אבל רק אם הריצה זוכרת איפה היא,
+   * במקום לשאול כל פעם מחדש ולקפוץ ישר לסוף.
    */
-  private runQuest(questId: string): void {
+  private runQuest(questId: string, at: number): void {
     const quest = getQuest(questId)
-    const at = questBeatOf(questId)
 
-    // המשימה הסתיימה. חוזרים למסך הפתיחה, ושם היא כבר מסומנת.
+    // הסיפור נגמר. חוזרים לרשימה, ושם כבר מחכה הבא.
     if (at >= quest.beats.length) {
-      this.showTitle()
+      this.showStories()
       return
     }
 
     const beat = quest.beats[at]
     const next = (): void => {
       advanceQuest(questId, at + 1)
-      this.runQuest(questId)
+      this.runQuest(questId, at + 1)
     }
-    const exit = (): void => this.showTitle()
+    const exit = (): void => this.showStories()
 
     this.current = 'quest'
     this.world?.stop()
