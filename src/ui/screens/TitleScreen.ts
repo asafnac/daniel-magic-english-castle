@@ -61,7 +61,7 @@ export function buildTitleScreen(deps: TitleScreenDeps): HTMLElement {
   // הסיפור ראשון, מעל הכל חוץ מ"להמשיך לשחק". זה הדבר שאמור למשוך
   // אותה פנימה - דמויות שקורה להן משהו - ולא רשימת משימות.
   card.appendChild(
-    bigButton(hasSeenScene(FIRST_SCENE) ? 'הסיפור' : 'סיפור חדש!', () => {
+    bigButton(hasSeenScene(FIRST_SCENE) ? 'הסיפורים שלי' : 'סיפור חדש!', () => {
       unlockAudio()
       unlockSpeech()
       startMusic()

@@ -17,6 +17,8 @@
  * מהדמות, ואז עוד עזרה, עד שעוברים. ראו AskScreen.
  */
 
+import { questBeatOf } from './progress'
+
 export interface SceneBeat {
   kind: 'scene'
   /** מזהה מ-scenes.ts. */
@@ -89,6 +91,8 @@ export interface Quest {
   emoji: string
   /** תיאור קצר, למסך הבחירה. */
   blurb: string
+  /** המשימה שצריך לסיים לפני שזו נפתחת. חסר במשימה הראשונה. */
+  requires?: string
   beats: Beat[]
 }
 
@@ -159,6 +163,73 @@ export const QUESTS: Quest[] = [
       },
     ],
   },
+  {
+    id: 'pip-hungry',
+    title: 'פיפ רעב',
+    emoji: '🍞',
+    blurb: 'פיפ אכל את כל האוכל במטבח של זיגי, ועכשיו מבשלים מחדש.',
+    requires: 'dragon',
+    beats: [
+      { kind: 'scene', scene: 'pip-2-kitchen' },
+      // פיפ מבקש בעצמו, ולא מישהו בשבילו. I want הוא המבנה שדניאל
+      // תרצה להשתמש בו בעצמה, ולכן היא שומעת אותו מפי מי שתמיד רוצה.
+      {
+        kind: 'ask',
+        character: 'pip',
+        say: 'I am hungry. I want the bread.',
+        he: 'אני רעב. אני רוצה את הלחם.',
+        options: ['bread', 'cake', 'milk'],
+        answer: 'bread',
+        help: 'The bread! I want the bread, please.',
+        helpHe: 'הלחם! אני רוצה את הלחם, בבקשה.',
+        thanks: 'Yum! Thank you, Daniel!',
+        thanksHe: 'ממ! תודה, דניאל!',
+        teaches: ['I want the ___'],
+      },
+      { kind: 'scene', scene: 'pip-3-mimi' },
+      {
+        kind: 'ask',
+        character: 'guard',
+        say: 'Pip wants the milk. Can you bring the milk?',
+        he: 'פיפ רוצה את החלב. את יכולה להביא את החלב?',
+        options: ['milk', 'water', 'egg'],
+        answer: 'milk',
+        help: 'The milk, please. The white one.',
+        helpHe: 'את החלב בבקשה. הלבן.',
+        thanks: 'Good. Thank you, princess.',
+        thanksHe: 'יופי. תודה, נסיכה.',
+        teaches: ['Can you bring the ___?'],
+      },
+      {
+        kind: 'play',
+        game: 'chase',
+        intro: 'פיפ חטף את העוגה וברח מהמטבח! תפסי אותו.',
+      },
+      {
+        kind: 'reward',
+        item: 'outfit-chef',
+        text: 'בישלת במטבח של הקוסם, וקיבלת את סינר הבישול.',
+      },
+      {
+        kind: 'say',
+        character: 'pip',
+        ask: 'Do you like cake?',
+        askHe: 'את אוהבת עוגה?',
+        choices: [
+          { en: 'Yes, I like cake.', he: 'כן, אני אוהבת עוגה.' },
+          { en: 'I like cake and apples.', he: 'אני אוהבת עוגה ותפוחים.' },
+        ],
+        reply: 'Me too! Cake is the best.',
+        replyHe: 'גם אני! עוגה זה הכי טוב.',
+        teaches: ['Do you like ___?', 'I like ___'],
+      },
+      {
+        kind: 'reward',
+        item: 'pet-mimi',
+        text: 'מימי נשארה בגלל ריח העוגה. עכשיו היא שלך.',
+      },
+    ],
+  },
 ]
 
 export function findQuest(id: string): Quest | undefined {
@@ -173,6 +244,36 @@ export function getQuest(id: string): Quest {
 
 /** המשימה הראשונה. */
 export const FIRST_QUEST = 'dragon'
+
+/**
+ * מצב הסיפור, מנקודת מבט של מסך הסיפורים.
+ *
+ * `done` הוא לא סוף. סיפור שנגמר נשאר ברשימה ואפשר לראות אותו שוב
+ * מההתחלה - דניאל אהבה את הדרקון וביקשה לשמוע אותו שוב, וכפתור
+ * שלא עושה כלום הוא התשובה הגרועה ביותר לבקשה כזאת.
+ */
+export type QuestStage = 'locked' | 'new' | 'middle' | 'done'
+
+export function questStage(questId: string): QuestStage {
+  const quest = getQuest(questId)
+  const at = questBeatOf(questId)
+  if (at >= quest.beats.length) return 'done'
+  if (quest.requires && questBeatOf(quest.requires) < getQuest(quest.requires).beats.length) return 'locked'
+  return at === 0 ? 'new' : 'middle'
+}
+
+/**
+ * מאיזו פעימה להתחיל.
+ *
+ * באמצע ממשיכים מאיפה שעצרו, ובסיפור שנגמר מתחילים מההתחלה. הצפייה
+ * החוזרת לא דורסת כלום: המונה השמור הוא מקסימום בלבד, ולכן סיפור
+ * שהושלם נשאר מושלם גם אחרי שרואים אותו שוב.
+ */
+export function questStartBeat(questId: string): number {
+  const quest = getQuest(questId)
+  const at = questBeatOf(questId)
+  return at >= quest.beats.length ? 0 : at
+}
 
 /**
  * כל המבנים שהמשימה חושפת, לפי סדר ההופעה.

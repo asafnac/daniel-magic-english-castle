@@ -123,6 +123,92 @@ export const SCENES: Scene[] = [
       },
     ],
   },
+  {
+    id: 'pip-2-kitchen',
+    title: 'פיפ רעב',
+    summary:
+      'הפתיחה של הסיפור השני. פיפ גר כבר אצל דניאל, והוא אכל את כל האוכל במטבח של זיגי. ' +
+      'ברונו השומר מופיע כאן לראשונה במשימה, והתפקיד הלשוני שלו הוא הוראות קצרות. ' +
+      'המבנה המרכזי הוא I want, והוא נאמר מפי פיפ - הדמות שתמיד רוצה משהו.',
+    lines: [
+      {
+        who: 'guard',
+        en: 'Stop! This is the kitchen.',
+        he: 'עצור! זה המטבח.',
+        teaches: ['This is the ___'],
+      },
+      {
+        who: 'pip',
+        en: 'I am hungry! So hungry!',
+        he: 'אני רעב! כל כך רעב!',
+        teaches: ['I am ___'],
+      },
+      {
+        who: 'ziggy',
+        en: 'Oh no! Where is my bread?',
+        he: 'אוי לא! איפה הלחם שלי?',
+        teaches: ['Where is my ___?'],
+      },
+      {
+        who: 'guard',
+        en: 'The little dragon ate it.',
+        he: 'הדרקון הקטן אכל אותו.',
+      },
+      {
+        who: 'pip',
+        en: 'Sorry. I want more food.',
+        he: 'סליחה. אני רוצה עוד אוכל.',
+        teaches: ['I want ___'],
+      },
+      {
+        who: 'ziggy',
+        en: 'Then we cook! Come, Daniel.',
+        he: 'אז נבשל! בואי, דניאל.',
+      },
+    ],
+  },
+  {
+    id: 'pip-3-mimi',
+    title: 'מי בא לחלון?',
+    summary:
+      'הסצנה האמצעית של הסיפור השני, ומי שנכנסת בה היא הפרס שבסוף. ' +
+      'מימי מגיעה בגלל ריח העוגה ואומרת מה היא אוהבת, וככה I like נשמע פעמיים ' +
+      'לפני שדניאל בוחרת אותו בעצמה בסוף.',
+    lines: [
+      {
+        who: 'ziggy',
+        en: 'The cake is very hot. Wait.',
+        he: 'העוגה חמה מאוד. חכי רגע.',
+      },
+      {
+        who: 'mimi',
+        en: 'Meow! I like cake.',
+        he: 'מיאו! אני אוהבת עוגה.',
+        teaches: ['I like ___'],
+      },
+      {
+        who: 'maya',
+        en: 'Look! A little cat!',
+        he: 'תראי! חתולה קטנה!',
+        teaches: ['Look! A ___'],
+      },
+      {
+        who: 'pip',
+        en: 'Hello, cat. I am Pip.',
+        he: 'שלום חתולה. אני פיפ.',
+      },
+      {
+        who: 'mimi',
+        en: 'Meow! I am Mimi.',
+        he: 'מיאו! אני מימי.',
+      },
+      {
+        who: 'maya',
+        en: 'She wants the cake too!',
+        he: 'היא רוצה את העוגה גם!',
+      },
+    ],
+  },
 ]
 
 /** הסצנה שפותחת את הסיפור. */

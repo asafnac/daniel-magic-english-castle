@@ -24,9 +24,10 @@ import { buildTitleScreen } from '../ui/screens/TitleScreen'
 import { buildSceneScreen, castOf } from '../ui/screens/SceneScreen'
 import { CHARACTERS, PLAYER_CHARACTER, findCharacter } from '../learning/characters'
 import { FIRST_SCENE, SCENES, findScene, getScene } from '../learning/scenes'
-import { FIRST_QUEST, QUESTS, findQuest, getQuest, structuresOf } from '../learning/quests'
+import { FIRST_QUEST, QUESTS, findQuest, getQuest, questStage, questStartBeat, structuresOf } from '../learning/quests'
 import { ITEMS, findItem, getItem } from '../learning/items'
 import { buildRoomScreen } from '../ui/screens/RoomScreen'
+import { buildStoriesScreen } from '../ui/screens/StoriesScreen'
 import { buildChaseScreen } from '../ui/screens/ChaseScreen'
 import { ChaseGame } from '../game/chase'
 import { buildAskScreen } from '../ui/screens/AskScreen'
@@ -523,6 +524,36 @@ function run(): void {
     check('going back through a beat does not rewind the story', questBeatOf(FIRST_QUEST) === 3)
     check('the further device wins a merge', mergeSaves(freshSave(), getProgress()).questBeat[FIRST_QUEST] === 3)
 
+    // ------------------------------------------------- מסך הסיפורים
+    //
+    // דניאל אהבה את סיפור הדרקון וביקשה לשמוע אותו שוב, ואז גילתה
+    // שכפתור הסיפור פשוט לא עושה כלום אחרי שסיימו. הכללים כאן הם
+    // מה שמונע את זה: יש יותר מסיפור אחד, סיפור שנגמר נשאר פתוח
+    // לצפייה חוזרת מההתחלה, וצפייה חוזרת לא מוחקת את מה שהושג.
+    eraseEverything()
+    check('there is more than one story', QUESTS.length >= 2, String(QUESTS.length))
+    check('every story after the first one names what unlocks it', QUESTS.slice(1).every((q) => !!q.requires && !!findQuest(q.requires!)))
+    check('the first story needs nothing', !QUESTS[0].requires)
+    check('every story has a blurb for the menu', QUESTS.every((q) => q.blurb.trim().length > 10))
+
+    const second = QUESTS[1]
+    check('a new story starts as new', questStage(FIRST_QUEST) === 'new')
+    check('the second story starts locked', questStage(second.id) === 'locked')
+    advanceQuest(FIRST_QUEST, 2)
+    check('a started story is in the middle', questStage(FIRST_QUEST) === 'middle')
+    check('the second story is still locked mid-story', questStage(second.id) === 'locked')
+    check('the middle continues where she stopped', questStartBeat(FIRST_QUEST) === 2)
+
+    advanceQuest(FIRST_QUEST, getQuest(FIRST_QUEST).beats.length)
+    check('a finished story reports itself done', questStage(FIRST_QUEST) === 'done')
+    check('finishing the first story unlocks the second', questStage(second.id) === 'new')
+    check('a finished story can be watched again from the start', questStartBeat(FIRST_QUEST) === 0)
+
+    // הצפייה החוזרת לא דורסת: המונה הוא מקסימום בלבד
+    advanceQuest(FIRST_QUEST, 1)
+    check('watching it again does not undo finishing it', questStage(FIRST_QUEST) === 'done')
+    check('and it still offers to start over', questStartBeat(FIRST_QUEST) === 0)
+
     // אוסף
     eraseEverything()
     check('the collection starts empty', getProgress().collected.length === 0)
@@ -607,6 +638,35 @@ function run(): void {
       check('the room names the item', (room.textContent ?? '').includes(getItem('pet-pip').name))
       check('the room says where it came from', (room.textContent ?? '').includes(getItem('pet-pip').from))
       check('an item not yet collected gives nothing away', !(room.querySelector('.room-slot.empty')?.textContent ?? '').includes(getItem('crown-apple').name))
+    }
+
+    // מסך הסיפורים: הרשימה שאפשר לחזור אליה
+    {
+      eraseEverything()
+      let picked = ''
+      let backs = 0
+      const fresh = buildStoriesScreen({ onPick: (id) => (picked = id), onBack: () => (backs += 1) })
+      const cards = () => Array.from(fresh.querySelectorAll<HTMLButtonElement>('.story-card'))
+      check('the menu lists every story', cards().length === QUESTS.length)
+      check('a locked story cannot be opened', cards()[1].disabled)
+      check('a locked story does not spoil what happens in it', !(cards()[1].textContent ?? '').includes(QUESTS[1].blurb))
+      check('a locked story says what unlocks it', (cards()[1].textContent ?? '').includes(getQuest(QUESTS[1].requires!).title))
+      cards()[0].click()
+      check('picking the first story opens it', picked === FIRST_QUEST)
+      fresh.querySelector<HTMLButtonElement>('.big-btn')?.click()
+      check('the menu can be left', backs === 1)
+
+      // ואחרי שסיימה: הסיפור הראשון עדיין שם, והשני נפתח
+      advanceQuest(FIRST_QUEST, getQuest(FIRST_QUEST).beats.length)
+      const after = buildStoriesScreen({ onPick: (id) => (picked = id), onBack: () => {} })
+      const done = Array.from(after.querySelectorAll<HTMLButtonElement>('.story-card'))
+      check('a finished story is still in the menu', done.length === QUESTS.length)
+      check('a finished story offers to watch it again', !done[0].disabled && (done[0].textContent ?? '').includes('לראות שוב'))
+      check('finishing the first story opens the second in the menu', !done[1].disabled)
+      check('and the second one is marked as new', (done[1].textContent ?? '').includes('סיפור חדש'))
+      done[0].click()
+      check('the finished story can be picked again', picked === FIRST_QUEST)
+      eraseEverything()
     }
 
     // ---- המרדף: הכלל היחיד הוא שאי אפשר להפסיד ----
