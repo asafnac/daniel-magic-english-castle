@@ -8,7 +8,7 @@
 import { World } from '../game/World'
 import { getArea } from '../learning/areas'
 import { sfxGate, sfxStar, startMusic, stopMusic } from '../learning/audio'
-import { advanceQuest, areaProgress, collectItem, flushSave, getProgress, markSceneSeen, questBeatOf } from '../learning/progress'
+import { advanceQuest, areaProgress, areaStage, collectItem, flushSave, getProgress, markSceneSeen, questBeatOf } from '../learning/progress'
 import { AreaSession } from '../learning/session'
 import { PracticeSession, practiceAvailable } from '../learning/practiceSession'
 import { Hud } from '../ui/components/Hud'
@@ -294,11 +294,7 @@ export class App {
 
   /** דמות שכל המשימות שלה הושלמו כבר לא מקפיצה משימה בכל מעבר לידה. */
   private syncGuideMarkers(): void {
-    if (!this.world) return
-    for (const guide of this.world.castle.guides) {
-      const ap = areaProgress(guide.areaId)
-      this.world.setGuideActive(guide.areaId, ap.unlocked)
-    }
+    this.world?.refreshGuideMarkers()
   }
 
   private refreshHud(): void {
@@ -312,12 +308,22 @@ export class App {
     if (!this.world || !this.taskPanel) return
     if (this.taskPanel.isOpen) return
     if (this.current === 'learn') return
-    const ap = areaProgress(areaId)
-    if (!ap.unlocked) {
+    const stage = areaStage(areaId)
+    if (stage === 'locked') {
       toast('השער הזה עדיין נעול. בואי נסיים קודם את האזור הקודם 🔒')
       return
     }
 
+    // אזור שסיימנו כבר לא עוצר אותה. הדמות המנחה עומדת בדיוק על
+    // השביל שמוביל לשער, ולכן פתיחה אוטומטית כאן הייתה כלוב: כל
+    // ניסיון להתקדם החזיר אותה למשימה שכבר עברה.
+    if (stage === 'done') {
+      const area = getArea(areaId)
+      toast(`⭐ כבר סיימת את ${area.title}! הדרך קדימה פתוחה`, 3600)
+      return
+    }
+
+    const ap = areaProgress(areaId)
     // בפעם הראשונה באזור עוברים קודם על המילים בלי שאלות ובלי יהלומים.
     // להיפגש עם מילה חדשה בתוך מבחן זה מתכון לתסכול.
     if (ap.completedTasks === 0) {
@@ -441,14 +447,14 @@ export class App {
     flushSave()
 
     if (areaId) {
-      this.world?.setGuideActive(areaId, false)
+      this.world?.setGuideStage(areaId, 'done')
       this.world?.openGate(areaId)
       sfxGate()
     }
 
     if (unlockedAreaId) {
       const next = getArea(unlockedAreaId)
-      this.world?.setGuideActive(unlockedAreaId, true)
+      this.world?.setGuideStage(unlockedAreaId, 'waiting')
       toast(`השער נפתח! ${next.emoji} ${next.title} מחכה לך`)
       sfxStar()
     } else {

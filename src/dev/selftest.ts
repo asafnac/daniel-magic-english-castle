@@ -6,7 +6,7 @@
 import { Castle } from '../game/Castle'
 import { AREA_LAYOUTS, HALF_WIDTH, SPAWN, areaAt, areaEntry } from '../game/layout'
 import { AREAS } from '../learning/areas'
-import { GAME_ID, advanceQuest, collectItem, eraseEverything, freshSave, getProgress, hasItem, hasSeenScene, markSceneSeen, questBeatOf, readLog, type SaveData } from '../learning/progress'
+import { GAME_ID, advanceQuest, areaStage, collectItem, eraseEverything, freshSave, getProgress, hasItem, hasSeenScene, markSceneSeen, questBeatOf, readLog, updateProgress, type SaveData } from '../learning/progress'
 import { bandOf, freshStat, masteryOf, urgencyOf, type ItemStat } from '../learning/mastery'
 import { mergeSaves } from '../learning/merge'
 import { PRACTICE_ROUND, PracticeSession, candidates, practiceAvailable } from '../learning/practiceSession'
@@ -1198,7 +1198,51 @@ function runWorldChecks(): void {
   }
   check('spawn is in the courtyard, not inside an area', areaAt(SPAWN.z) === undefined)
 
+  // ------------------------------------------- דמות מנחה שכבר סיימו איתה
+  //
+  // הדמות המנחה עומדת במרכז השביל, שבעה מטרים לפני השער, ויש לה גוף
+  // שחוסם מעבר. כלומר כל דרך אל האזור הבא עוברת בטווח הזיהוי שלה.
+  // כל עוד "יש כאן משימה" נקבע לפי `unlocked` בלבד, זה היה כלוב:
+  // דניאל סיימה את גן הצבעים, ואז כל ניסיון לעבור לחצר החיות פתח לה
+  // מחדש את משימת הצבעים, והיציאה ממנה דחפה אותה חמישה מטרים אחורה.
+  check('first guide waits at the start', castle.guideStage(garden.id) === 'waiting')
+  check('guides of locked areas do not wait', AREA_LAYOUTS.slice(1).every((l) => castle.guideStage(l.id) === 'locked'))
+  const waiting = castle.guides.find((g) => g.areaId === garden.id)!
+  check('a waiting guide shows the exclamation mark', waiting.marker.visible && !waiting.doneMark.visible)
   castle.dispose()
+
+  updateProgress((d) => {
+    d.areas[garden.id].unlocked = true
+    d.areas[garden.id].done = true
+    d.areas[garden.id].completedTasks = AREAS[0].tasks.length
+    d.areas[AREAS[1].id].unlocked = true
+  })
+  check('a finished area reports itself done', areaStage(garden.id) === 'done')
+  check('an area with tasks left still reports waiting', areaStage(AREAS[1].id) === 'waiting')
+
+  const after = new Castle()
+  const doneGuide = after.guides.find((g) => g.areaId === garden.id)!
+  check('finished area: its guide is marked done', after.guideStage(garden.id) === 'done')
+  check('finished area: the exclamation mark is gone', !doneGuide.marker.visible)
+  check('finished area: a star stands there instead', doneGuide.doneMark.visible)
+  check('finished area: its gate is open on a fresh build', after.isGateOpen(garden.id))
+  check('the next area: its guide is waiting', after.guideStage(AREAS[1].id) === 'waiting')
+
+  // הנתיב היחיד אל השער עובר בטווח הזיהוי של הדמות, ובכל זאת מגיע
+  // אל מעבר לשער. זו הבדיקה שנופלת אם דמות שסיימנו איתה תופסת שוב.
+  let px = 2.5
+  let pz = garden.zStart - 2
+  let nearest = Infinity
+  for (let i = 0; i < Math.round(6 / DT); i++) {
+    const next = after.collision.move(px, pz, 0, -SPEED * DT, RADIUS)
+    px = next.x
+    pz = next.z
+    nearest = Math.min(nearest, Math.hypot(px - doneGuide.x, pz - doneGuide.z))
+  }
+  check('the way to the gate passes inside the guide radius', nearest < 3.4, `nearest=${nearest.toFixed(1)}`)
+  check('a finished area never blocks the way forward', pz < gateZ, `z=${pz.toFixed(1)} gate=${gateZ}`)
+  after.dispose()
+
   eraseEverything()
 }
 
@@ -1402,6 +1446,8 @@ function playTheWholeCastleInOrder(): void {
   for (const area of AREAS.slice(0, last)) {
     check(`${area.id}: its gate is open in a freshly built castle`, castle.isGateOpen(area.id))
   }
+  // וגם אף דמות מנחה לא תופסת אותה שוב אחרי שסיימה את כולן
+  check('no guide waits once the whole castle is finished', AREAS.every((a) => castle.guideStage(a.id) === 'done'))
   castle.dispose()
   eraseEverything()
 }

@@ -12,6 +12,7 @@ import { Effects } from './Effects'
 import { Player } from './Player'
 import { BRIDGE_HALF, SPAWN, areaEntry, areaAt } from './layout'
 import type { AvatarConfig } from '../app/avatarConfig'
+import type { AreaStage } from '../learning/progress'
 
 const CAMERA_OFFSET = new THREE.Vector3(0, 8, 11.5)
 const CAMERA_LOOK_HEIGHT = 1.4
@@ -35,7 +36,7 @@ export class World {
   private nearGuideId: string | null = null
   private cameraPos = new THREE.Vector3()
 
-  /** נקרא כשהשחקנית מגיעה לדמות מנחה שעדיין יש לה משימות. */
+  /** נקרא כשהשחקנית מגיעה לדמות מנחה, גם אם כבר סיימה איתה. */
   onReachGuide: ((areaId: string) => void) | null = null
   /** נקרא כשהשחקנית נכנסת לאזור חדש. null כשהיא בחצר או על גשר. */
   onEnterArea: ((areaId: string | null) => void) | null = null
@@ -80,7 +81,7 @@ export class World {
     this.effects = new Effects(this.scene)
     this.controls = new Controls(host)
 
-    this.refreshGuideMarkers()
+    // הדמויות המנחות כבר מיושרות מול ההתקדמות בבנאי של Castle.
     this.resize()
     window.addEventListener('resize', this.resize)
   }
@@ -167,7 +168,8 @@ export class World {
     const p = this.player.position
     let inside: string | null = null
     for (const guide of this.castle.guides) {
-      if (!guide.marker.visible) continue
+      // גם דמות שסיימנו איתה מדווחת. מה קורה אז זו החלטה של App,
+      // והיא בהחלט לא "לפתוח שוב את המשימה".
       const d = Math.hypot(p.x - guide.x, p.z - guide.z)
       const radius = this.nearGuideId === guide.areaId ? GUIDE_EXIT_RADIUS : GUIDE_ENTER_RADIUS
       if (d < radius) {
@@ -195,14 +197,12 @@ export class World {
 
   /** מסמן מחדש איזו דמות עדיין מחכה, לפי ההתקדמות השמורה. */
   refreshGuideMarkers(): void {
-    for (const guide of this.castle.guides) {
-      this.castle.setGuideActive(guide.areaId, true)
-    }
+    this.castle.refreshGuides()
   }
 
-  setGuideActive(areaId: string, active: boolean): void {
-    this.castle.setGuideActive(areaId, active)
-    if (!active && this.nearGuideId === areaId) this.nearGuideId = null
+  setGuideStage(areaId: string, stage: AreaStage): void {
+    this.castle.setGuideStage(areaId, stage)
+    if (stage !== 'waiting' && this.nearGuideId === areaId) this.nearGuideId = null
   }
 
   /** משחרר את הזיהוי, כדי שיציאה ממשימה לא תפתח אותה מיד שוב. */
