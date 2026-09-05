@@ -7,7 +7,7 @@
 
 import * as THREE from 'three'
 import { AREAS, getArea } from '../learning/areas'
-import { areaProgress } from '../learning/progress'
+import { areaProgress, areaStage, type AreaStage } from '../learning/progress'
 import { Collision } from './Collision'
 import {
   AREA_LAYOUTS,
@@ -38,9 +38,13 @@ export interface Gate {
 export interface Guide {
   areaId: string
   group: THREE.Group
+  /** סימן הקריאה: יש כאן משימה. */
   marker: THREE.Sprite
+  /** כוכב: סיימנו כאן, ואפשר להמשיך. */
+  doneMark: THREE.Sprite
   x: number
   z: number
+  stage: AreaStage
 }
 
 /** אימוג'ים מקשטים לכל נושא. */
@@ -75,6 +79,9 @@ export class Castle {
     this.buildCourtyard()
     for (const layout of AREA_LAYOUTS) this.buildArea(layout)
     this.buildClouds()
+    // בדיוק כמו השערים: המצב הראשוני נגזר מההתקדמות השמורה, ולא
+    // מברירת מחדל שמישהו יזכור לתקן אחר כך.
+    this.refreshGuides()
   }
 
   // ------------------------------------------------------------ חצר הכניסה
@@ -261,6 +268,13 @@ export class Castle {
     marker.position.y = 4
     g.add(marker)
 
+    // כוכב מעל דמות שסיימנו איתה. לא רק כיבוי הסימן: אזור שהושלם
+    // צריך להיראות כמו הישג כשעוברים בו, ולא כמו מקום שכבה.
+    const doneMark = emojiSprite('⭐', 1.3)
+    doneMark.position.y = 4
+    doneMark.visible = false
+    g.add(doneMark)
+
     g.position.set(layout.guide.x, 0, layout.guide.z)
     this.root.add(g)
 
@@ -272,7 +286,7 @@ export class Castle {
       maxZ: layout.guide.z + 1,
     })
 
-    this.guides.push({ areaId: layout.id, group: g, marker, x: layout.guide.x, z: layout.guide.z })
+    this.guides.push({ areaId: layout.id, group: g, marker, doneMark, x: layout.guide.x, z: layout.guide.z, stage: 'locked' })
   }
 
   // ------------------------------------------------------------ גשר ושער
@@ -419,10 +433,22 @@ export class Castle {
     return this.gates.find((g) => g.fromAreaId === areaId)?.open ?? true
   }
 
-  /** מסמן איזו דמות מנחה עדיין מחכה למשימות. */
-  setGuideActive(areaId: string, active: boolean): void {
+  /** מסמן באיזה שלב נמצא האזור של הדמות המנחה. */
+  setGuideStage(areaId: string, stage: AreaStage): void {
     const guide = this.guides.find((g) => g.areaId === areaId)
-    if (guide) guide.marker.visible = active
+    if (!guide) return
+    guide.stage = stage
+    guide.marker.visible = stage === 'waiting'
+    guide.doneMark.visible = stage === 'done'
+  }
+
+  /** מיישר את כל הדמויות המנחות מול ההתקדמות השמורה. */
+  refreshGuides(): void {
+    for (const guide of this.guides) this.setGuideStage(guide.areaId, areaStage(guide.areaId))
+  }
+
+  guideStage(areaId: string): AreaStage {
+    return this.guides.find((g) => g.areaId === areaId)?.stage ?? 'locked'
   }
 
   private applyGateAnim(gate: Gate): void {

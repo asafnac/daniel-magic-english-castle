@@ -541,6 +541,36 @@ export function areaProgress(areaId: string): AreaProgress {
   return d.areas[areaId]
 }
 
+/**
+ * שלושת המצבים של אזור, מנקודת מבט של מי שמסתובב בעולם.
+ *
+ * `locked` - השער אליו עדיין סגור.
+ * `waiting` - יש בו משימה שמחכה לדניאל.
+ * `done` - היא סיימה כאן, והדרך קדימה פתוחה.
+ */
+export type AreaStage = 'locked' | 'waiting' | 'done'
+
+/**
+ * המקור היחיד לשאלה "האם הדמות המנחה עדיין רוצה משהו ממני".
+ *
+ * הפונקציה הזאת נולדה מבאג אמיתי: הדמות המנחה עומדת בדיוק על השביל
+ * שמוביל לשער, ולכן כל מעבר לידה פתח שוב את המשימות של האזור. אחרי
+ * שדניאל סיימה את גן הצבעים היא לא הצליחה לעבור לחצר החיות - כל
+ * ניסיון להתקדם פתח לה מחדש את משימת הצבעים, ויציאה ממנה החזירה
+ * אותה אחורה. אזור שהושלם חייב להפוך לשקוף בדרך.
+ *
+ * הבדיקה של `completedTasks` היא חגורה נוספת: שמירה ישנה שבה כל
+ * המשימות נענו אבל הדגל `done` לא נכתב עדיין לא תחזיר אותה ללולאה.
+ */
+export function areaStage(areaId: string): AreaStage {
+  const ap = areaProgress(areaId)
+  if (!ap.unlocked) return 'locked'
+  if (ap.done) return 'done'
+  const area = AREAS.find((a) => a.id === areaId)
+  if (area && ap.completedTasks >= area.tasks.length) return 'done'
+  return 'waiting'
+}
+
 export function unlockArea(areaId: string): void {
   updateProgress((d) => {
     if (d.areas[areaId]) d.areas[areaId].unlocked = true
